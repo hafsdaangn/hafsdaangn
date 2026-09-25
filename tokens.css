@@ -1,0 +1,47 @@
+/* Hallmark · pre-emit critique: P4 H4 E4 S4 R5 V4
+ * macrostructure: Catalogue / Workbench · theme: HAFS draft · modern-minimal
+ * Single Korean sans family intentionally preserves legibility across app surfaces.
+ */
+:root {
+  --color-paper: oklch(99.7% 0.002 80);
+  --color-ink: oklch(24% 0.012 130);
+  --color-muted: oklch(49% 0.013 110);
+  --color-subtle: oklch(95.7% 0.007 90);
+  --color-line: oklch(91.5% 0.007 90);
+  --color-accent: oklch(55% 0.175 40);
+  --color-accent-hover: oklch(49% 0.16 40);
+  --color-accent-soft: oklch(95% 0.03 55);
+  --color-green: oklch(42% 0.095 145);
+  --color-green-soft: oklch(95% 0.025 135);
+  --color-danger: oklch(48% 0.17 26);
+  --color-danger-soft: oklch(96% 0.02 26);
+  --color-on-accent: oklch(100% 0 0);
+  --color-focus: oklch(43% 0.14 240);
+  --color-shadow: oklch(20% 0.01 90 / 0.08);
+  --color-photo-overlay: oklch(20% 0.01 90 / 0.65);
+  --font-body:
+    "Noto Sans KR Variable", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --font-display: var(--font-body);
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-round: 999px;
+  --text-sm: 13px;
+  --text-body: 16px;
+  --text-title: 26px;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-micro: 120ms;
+  --art-paper: oklch(92% 0.021 83);
+  --art-shadow: oklch(76% 0.025 83 / 0.25);
+  --art-dark: oklch(33% 0.025 90);
+  --art-metal: oklch(71% 0.019 90);
+  --art-main: oklch(58% 0.055 215);
+  --art-light: oklch(97% 0.013 83);
+  --art-glow: oklch(94% 0.06 80 / 0.6);
+}

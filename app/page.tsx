@@ -1,69 +1,101 @@
-import Image from "next/image";
-
-export default function Home() {
+import Link from "next/link";
+import { ShieldCheck, MessageCircle, Search } from "lucide-react";
+import { appEnvironment } from "@/lib/environment";
+import { Brand } from "@/components/ui";
+import { configured } from "@/lib/supabase/server";
+export default async function Landing({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const development = appEnvironment() === "development";
+  const { error } = await searchParams,
+    ready = configured();
+  const errors: Record<string, string> = {
+    setup: "로그인 연결을 준비하고 있어요. 서비스 설정 후 이용할 수 있어요.",
+    school: development
+      ? "Google 계정으로 다시 로그인해 주세요."
+      : "@hafs.hs.kr 학교 Google 계정으로 로그인해 주세요.",
+    login: "로그인을 시작하지 못했어요. 잠시 후 다시 시도해 주세요.",
+  };
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
+    <div className="landing">
+      <header className="landing-header">
+        <Brand />
+        <span>우리 학교의 작은 장터</span>
+      </header>
+      <main className="landing-main">
+        <div className="landing-copy">
+          <span className="welcome-dot">안녕, HAFS!</span>
+          <h1>
+            쓰던 물건의
+            <br />
+            다음 이야기는
+            <br />
+            <em>우리 학교에서.</em>
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p>
+            필요한 물건을 사고, 나누고.
+            <br />
+            잃어버린 물건도 다시 만나는 합스당근.
           </p>
+          <div className="login-actions">
+            <Link
+              className={`button google-button ${!ready ? "not-ready" : ""}`}
+              href="/auth/login"
+            >
+              <span className="google-letter" aria-hidden="true">
+                G
+              </span>
+              {development
+                ? "Google 계정으로 시작하기"
+                : "학교 Google 계정으로 시작하기"}
+            </Link>
+            <small>
+              <ShieldCheck size={14} />
+              {development
+                ? "개발 환경 · 모든 Google 계정을 사용할 수 있어요"
+                : "@hafs.hs.kr 계정만 이용할 수 있어요"}
+            </small>
+            {error && (
+              <p className="error-notice" role="alert">
+                {errors[error] ?? errors.login}
+              </p>
+            )}
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <div className="landing-art" aria-hidden="true">
+          <div className="art-paper">
+            <span className="art-label">HAFS / 함께 쓰는 일상</span>
+            <div className="large-carrot">
+              <i />
+              <i />
+              <i />
+              <b />
+            </div>
+            <div className="art-caption">
+              <strong>가까워서 더 좋은 거래.</strong>
+              <span>
+                다음 주인도, 잃어버린 주인도
+                <br />
+                생각보다 가까이 있을 거예요.
+              </span>
+            </div>
+          </div>
+          <div className="art-tag tag-one">
+            <MessageCircle size={18} />
+            점심시간에 만나요!
+          </div>
+          <div className="art-tag tag-two">
+            <Search size={18} />
+            찾았어요, 내 물건
+          </div>
         </div>
       </main>
+      <footer className="landing-footer">
+        <span>합스당근 · HAFS 구성원을 위한 중고거래와 분실물 연결</span>
+        <span>학교 계정으로, 우리끼리.</span>
+      </footer>
     </div>
   );
 }

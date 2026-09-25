@@ -1,0 +1,13 @@
+[
+  {
+    "date": "2026-09-25",
+    "macrostructure": "Catalogue / Workbench",
+    "theme": "HAFS approved mockup",
+    "nav": "Mobile bottom navigation, desktop top navigation",
+    "footer": "Contextual action bar",
+    "enrichment": "Code-native demo item illustrations",
+    "brief": "MVP marketplace, item details, chat and lost-and-found; no favorites or moderation",
+    "critique": {"philosophy":4,"hierarchy":4,"execution":4,"specificity":4,"restraint":5,"variety":4},
+    "limitations": "OAuth, hosted Storage and Realtime require external configuration and live integration verification"
+  }
+]
