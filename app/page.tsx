@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ShieldCheck, MessageCircle, Search } from "lucide-react";
 import { appEnvironment } from "@/lib/environment";
 import { Brand } from "@/components/ui";
@@ -6,11 +6,12 @@ import { configured } from "@/lib/supabase/server";
 export default async function Landing({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; code?: string }>;
 }) {
   const development = appEnvironment() === "development";
-  const { error } = await searchParams,
+  const { error, code } = await searchParams,
     ready = configured();
+  if (code) redirect(`/auth/callback?code=${encodeURIComponent(code)}`);
   const errors: Record<string, string> = {
     setup: "로그인 연결을 준비하고 있어요. 서비스 설정 후 이용할 수 있어요.",
     school: development
@@ -40,7 +41,7 @@ export default async function Landing({
             잃어버린 물건도 다시 만나는 합스당근.
           </p>
           <div className="login-actions">
-            <Link
+            <a
               className={`button google-button ${!ready ? "not-ready" : ""}`}
               href="/auth/login"
             >
@@ -50,7 +51,7 @@ export default async function Landing({
               {development
                 ? "Google 계정으로 시작하기"
                 : "학교 Google 계정으로 시작하기"}
-            </Link>
+            </a>
             <small>
               <ShieldCheck size={14} />
               {development
