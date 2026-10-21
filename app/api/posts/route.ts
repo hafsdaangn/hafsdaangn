@@ -30,7 +30,8 @@ export async function GET(request: Request) {
       );
     }
     const type = params.get("type");
-    if (type === "market") query = query.in("kind", ["sale", "giveaway"]);
+    if (type === "market")
+      query = query.in("kind", ["sale", "giveaway", "barter"]);
     if (type === "lost") query = query.in("kind", ["lost", "found"]);
     const search = params.get("q")?.trim().slice(0, 60);
     if (search) {

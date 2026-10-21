@@ -5,7 +5,7 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   timeout: 60000,
-  use: { channel: "msedge", headless: true, trace: "retain-on-failure" },
+  use: { headless: true, trace: "retain-on-failure" },
   projects: modes.map((name, i) => ({
     name,
     use: { baseURL: "http://127.0.0.1:" + (3100 + i) },

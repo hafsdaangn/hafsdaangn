@@ -16,7 +16,7 @@ export const places = [
   "기숙사 앞",
   "기타·모름",
 ] as const;
-export type Kind = "sale" | "giveaway" | "lost" | "found";
+export type Kind = "sale" | "giveaway" | "barter" | "lost" | "found";
 export type Status = "active" | "reserved" | "completed";
 export type Profile = { id: string; nickname: string };
 export type Post = {
@@ -30,6 +30,7 @@ export type Post = {
   place: string;
   occurred_on: string | null;
   custody: string;
+  wanted: string;
   status: Status;
   image_ids: string[];
   created_at: string;
@@ -69,28 +70,35 @@ export type Snapshot = {
   messages: Message[];
   hasMore: boolean;
 };
-export const isMarket = (kind: Kind) => kind === "sale" || kind === "giveaway";
+export const isMarket = (kind: Kind) =>
+  kind === "sale" || kind === "giveaway" || kind === "barter";
 export const priceLabel = (post: Pick<Post, "kind" | "price">) =>
   post.kind === "giveaway"
     ? "나눔"
-    : post.kind === "sale"
-      ? `${post.price.toLocaleString("ko-KR")}원`
-      : post.kind === "lost"
-        ? "잃어버렸어요"
-        : "주웠어요";
+    : post.kind === "barter"
+      ? "물물교환"
+      : post.kind === "sale"
+        ? `${post.price.toLocaleString("ko-KR")}원`
+        : post.kind === "lost"
+          ? "잃어버렸어요"
+          : "주웠어요";
 export const statusLabel = (post: Pick<Post, "status" | "kind">) =>
   post.status === "completed"
     ? isMarket(post.kind)
       ? post.kind === "giveaway"
         ? "나눔 완료"
-        : "거래 완료"
+        : post.kind === "barter"
+          ? "교환 완료"
+          : "거래 완료"
       : "해결 완료"
     : post.status === "reserved"
       ? "예약 중"
       : isMarket(post.kind)
         ? post.kind === "giveaway"
           ? "나눔 중"
-          : "판매 중"
+          : post.kind === "barter"
+            ? "교환 가능"
+            : "판매 중"
         : post.kind === "lost"
           ? "찾는 중"
           : "주인 찾는 중";
@@ -118,7 +126,7 @@ export const nicknameSchema = z
 export const postSchema = z
   .object({
     id: z.uuid().optional(),
-    kind: z.enum(["sale", "giveaway", "lost", "found"]),
+    kind: z.enum(["sale", "giveaway", "barter", "lost", "found"]),
     title: z.string().trim().min(2, "제목은 2자 이상 입력해 주세요.").max(60),
     body: z.string().trim().min(5, "설명을 5자 이상 입력해 주세요.").max(3000),
     price: z.number().int().min(0).max(100_000_000),
@@ -126,6 +134,7 @@ export const postSchema = z
     place: z.enum(places),
     occurred_on: z.iso.date().nullable(),
     custody: z.string().trim().max(100),
+    wanted: z.string().trim().max(60).default(""),
     image_ids: z.array(z.uuid()).max(5),
   })
   .superRefine((post, ctx) => {
@@ -162,6 +171,18 @@ export const postSchema = z
         code: "custom",
         message: "미래 날짜는 선택할 수 없어요.",
         path: ["occurred_on"],
+      });
+    if (post.kind === "barter" && post.wanted.length < 2)
+      ctx.addIssue({
+        code: "custom",
+        message: "받고 싶은 물건을 2자 이상 입력해 주세요.",
+        path: ["wanted"],
+      });
+    if (post.kind !== "barter" && post.wanted)
+      ctx.addIssue({
+        code: "custom",
+        message: "물물교환 이외의 글에는 받고 싶은 물건을 입력할 수 없어요.",
+        path: ["wanted"],
       });
     if (post.kind === "found" && !post.custody)
       ctx.addIssue({

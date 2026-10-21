@@ -174,6 +174,12 @@ export function PostDetail({
                 {priceLabel(post)}
               </strong>
             )}
+            {post.kind === "barter" && (
+              <div className="wanted-note">
+                <span>받고 싶은 물건</span>
+                <strong>{post.wanted}</strong>
+              </div>
+            )}
             <p className="description">{post.body}</p>
             <div className="location-info">
               <MapPin size={19} />

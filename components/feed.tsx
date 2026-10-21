@@ -163,13 +163,14 @@ export function Feed({ lost = false }: { lost?: boolean }) {
             </select>
           ) : (
             <select
-              aria-label="판매 나눔 필터"
+              aria-label="글 유형 필터"
               value={kind}
               onChange={(e) => filter("kind", e.target.value)}
             >
-              <option value="all">판매·나눔</option>
+              <option value="all">전체 유형</option>
               <option value="sale">판매</option>
               <option value="giveaway">나눔</option>
+              <option value="barter">물물교환</option>
             </select>
           )}
           <label className="checkbox-label">
