@@ -17,8 +17,8 @@ test("chat preview includes the sender, message and product within push payload 
     client_id: "client",
     created_at: new Date().toISOString(),
   };
-  assert.deepEqual(chatPushContent(message, "학교친구", "수학 교재"), {
-    title: "학교친구 · 수학 교재",
+  assert.deepEqual(chatPushContent(message, "김민수", "수학 교재"), {
+    title: "김민수 · 수학 교재",
     body: "아직 구매 가능한가요?",
     url: "/app/chats/room",
     tag: "chat-room",
@@ -28,11 +28,11 @@ test("chat preview includes the sender, message and product within push payload 
     null,
     "수학 교재",
   );
-  assert.equal(photo.title, "학교 친구 · 수학 교재");
+  assert.equal(photo.title, "수학 교재");
   assert.equal(photo.body, "사진을 보냈어요.");
   const long = chatPushContent(
     { ...message, body: "🥕".repeat(2000) },
-    "학교친구",
+    "김민수",
     "교재",
   );
   assert.ok(long.body.startsWith("🥕".repeat(160) + "…"));

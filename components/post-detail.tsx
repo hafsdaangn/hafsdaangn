@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   MapPin,
-  ShieldCheck,
   Pencil,
   Trash2,
   ChevronLeft,
@@ -150,13 +149,9 @@ export function PostDetail({
         </div>
         <div className="detail-info">
           <div className="seller">
-            <Avatar name={author?.nickname} />
+            <Avatar name={author?.display_name} />
             <div>
-              <strong>{author?.nickname || "학교 친구"}</strong>
-              <span>
-                <ShieldCheck size={13} />
-                Google 계정 인증
-              </span>
+              {author?.display_name && <strong>{author.display_name}</strong>}
             </div>
             {mine && <span className="mine-label">내 게시글</span>}
           </div>

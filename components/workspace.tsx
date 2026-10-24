@@ -9,7 +9,7 @@ import { Feed } from "./feed";
 import { PostDetail } from "./post-detail";
 import { PostForm } from "./post-form";
 import { Chats } from "./chats";
-import { Nickname, ProfilePage } from "./profile";
+import { ProfilePage } from "./profile";
 export function Workspace() {
   const { state, base, error, refresh } = useApp(),
     pathname = usePathname(),
@@ -75,7 +75,6 @@ export function Workspace() {
               </Link>
             ))}
           </nav>
-          <span className="header-note">우리 학교에서 시작하는 연결</span>
         </div>
       </header>
       <main id="content">
@@ -95,21 +94,10 @@ export function Workspace() {
             ) : (
               <>
                 <Spinner />
-                <p>학교 소식을 불러오는 중이에요</p>
+                <p>내용을 불러오는 중이에요.</p>
               </>
             )}
           </div>
-        ) : !state.viewer.nickname ? (
-          <section className="onboarding">
-            <span className="welcome-dot">반가워요!</span>
-            <h1>
-              어떤 이름으로
-              <br />
-              만나볼까요?
-            </h1>
-            <p>학교 친구들에게 보일 닉네임을 정해 주세요.</p>
-            <Nickname />
-          </section>
         ) : (
           <>
             {error && (

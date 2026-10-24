@@ -54,11 +54,11 @@ export async function notifyChat(message: Message) {
   }
   const { data: sender, error: senderError } = await admin
     .from("profiles")
-    .select("nickname")
+    .select("display_name")
     .eq("id", message.sender_id)
     .maybeSingle();
   if (senderError) throw new Error("Push sender lookup failed");
-  const content = chatPushContent(message, sender?.nickname, room.title);
+  const content = chatPushContent(message, sender?.display_name, room.title);
   const { data: subscriptions, error } = await admin
     .from("push_subscriptions")
     .select("endpoint,keys,device_id")

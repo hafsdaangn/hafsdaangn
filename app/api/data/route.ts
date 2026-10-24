@@ -4,7 +4,7 @@ export async function GET() {
   try {
     const { client, user } = await member();
     const results = await Promise.all([
-      client.from("profiles").select("id,nickname").limit(5000),
+      client.from("profiles").select("id,display_name").limit(5000),
       client
         .from("posts")
         .select("*")
@@ -33,7 +33,7 @@ export async function GET() {
     return json({
       viewer: profiles.find((p) => p.id === user.id) ?? {
         id: user.id,
-        nickname: "",
+        display_name: "",
       },
       profiles,
       posts: results[1].data?.slice(0, 40) ?? [],

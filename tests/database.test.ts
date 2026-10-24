@@ -11,13 +11,41 @@ test("Postgres schema enforces membership, ownership, media and private chat", a
     grant usage on schema auth, storage to anon, authenticated, service_role;
     create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
     create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz,raw_app_meta_data jsonb);
+    create table auth.identities(id uuid primary key default gen_random_uuid(),user_id uuid references auth.users(id),provider text,identity_data jsonb,last_sign_in_at timestamptz default now(),unique(user_id,provider));
     create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
     create table storage.objects(id uuid primary key,bucket_id text,name text); alter table storage.objects enable row level security;
     grant select on storage.objects to authenticated;`);
   for (const migration of readdirSync("supabase/migrations")
     .filter((f) => f.endsWith(".sql"))
-    .sort())
+    .sort()) {
+    if (migration.endsWith("_google_account_names.sql")) {
+      await db.query(
+        "insert into auth.users values($1,'legacy@hafs.hs.kr',now(),'{\"provider\":\"google\"}')",
+        [testId(90)],
+      );
+      await db.query(
+        "update public.profiles set nickname='옛닉네임' where id=$1",
+        [testId(90)],
+      );
+      await db.query(
+        "insert into auth.identities(user_id,provider,identity_data) values($1,'google',$2)",
+        [
+          testId(90),
+          { full_name: "Google에서 가져온 기존 회원의 긴 이름입니다" },
+        ],
+      );
+    }
     await db.exec(readFileSync("supabase/migrations/" + migration, "utf8"));
+  }
+  assert.equal(
+    (
+      await db.query<{ display_name: string }>(
+        "select display_name from public.profiles where id=$1",
+        [testId(90)],
+      )
+    ).rows[0].display_name,
+    "Google에서 가져온 기존 회원의 긴 이름입니다",
+  );
   const seller = testId(1),
     buyer = testId(2),
     stranger = testId(3),
@@ -71,8 +99,67 @@ test("Postgres schema enforces membership, ownership, media and private chat", a
         ).rows[0].result,
     );
   }
-  for (const uid of [seller, buyer, stranger])
-    await mutate(uid, "profile.save", { nickname: "학교친구" });
+  // New members skip onboarding; Google names have no old 2–16 character limit.
+  for (const [uid, name] of [
+    [seller, "이"],
+    [buyer, "긴 Google 계정 이름을 그대로 표시합니다"],
+    [stranger, "박 지수"],
+  ]) {
+    await db.query(
+      "insert into auth.identities(user_id,provider,identity_data) values($1,'google',$2)",
+      [uid, { name, full_name: "이전 값" }],
+    );
+    assert.equal(
+      (
+        await as(uid, (tx) =>
+          tx.query<{ display_name: string }>(
+            "select display_name from public.profiles where id=$1",
+            [uid],
+          ),
+        )
+      ).rows[0].display_name,
+      name,
+    );
+  }
+  await assert.rejects(
+    mutate(seller, "profile.save", { nickname: "임의 이름" }),
+    /알 수 없는 요청/,
+  );
+  await assert.rejects(
+    as(seller, (tx) =>
+      tx.query(
+        "update public.profiles set display_name='임의 이름' where id=$1",
+        [seller],
+      ),
+    ),
+    /permission denied/,
+  );
+  await db.query(
+    "update auth.identities set identity_data=$2 where user_id=$1 and provider='google'",
+    [seller, { name: "변경된 Google 이름" }],
+  );
+  assert.equal(
+    (
+      await db.query<{ display_name: string }>(
+        "select display_name from public.profiles where id=$1",
+        [seller],
+      )
+    ).rows[0].display_name,
+    "변경된 Google 이름",
+  );
+  await db.query(
+    "insert into auth.identities(user_id,provider,identity_data) values($1,'email',$2)",
+    [seller, { name: "다른 공급자 이름" }],
+  );
+  assert.equal(
+    (
+      await db.query<{ display_name: string }>(
+        "select display_name from public.profiles where id=$1",
+        [seller],
+      )
+    ).rows[0].display_name,
+    "변경된 Google 이름",
+  );
   assert.equal(
     (
       await as(unverified, (tx) =>
@@ -81,10 +168,7 @@ test("Postgres schema enforces membership, ownership, media and private chat", a
     ).rows[0].allowed,
     false,
   );
-  await assert.rejects(
-    mutate(unverified, "profile.save", { nickname: "거짓인증" }),
-    /학교 계정/,
-  );
+  await assert.rejects(mutate(unverified, "upload.consume", {}), /학교 계정/);
   const image = testId(10),
     foreignImage = testId(11),
     postId = testId(20);
@@ -299,6 +383,19 @@ test("Postgres schema enforces membership, ownership, media and private chat", a
     0,
   );
   await mutate(buyer, "account.delete", {});
+  await db.query(
+    "update auth.identities set identity_data=$2 where user_id=$1",
+    [buyer, { name: "복원하면 안 되는 이름" }],
+  );
+  assert.equal(
+    (
+      await db.query<{ display_name: string }>(
+        "select display_name from public.profiles where id=$1",
+        [buyer],
+      )
+    ).rows[0].display_name,
+    "탈퇴한 사용자",
+  );
   assert.equal(
     (await as(buyer, (tx) => tx.query("select * from public.messages"))).rows
       .length,
@@ -345,7 +442,7 @@ test("Postgres schema enforces membership, ownership, media and private chat", a
     ).rows[0].allowed,
     true,
   );
-  await mutate(external, "profile.save", { nickname: "개발계정" });
+  await mutate(external, "upload.consume", {});
   assert.equal(
     (
       await as(unverified, (tx) =>
@@ -376,10 +473,7 @@ test("Postgres schema enforces membership, ownership, media and private chat", a
       .length,
     0,
   );
-  await assert.rejects(
-    mutate(external, "profile.save", { nickname: "차단확인" }),
-    /학교 계정/,
-  );
+  await assert.rejects(mutate(external, "upload.consume", {}), /학교 계정/);
   await assert.rejects(environment("invalid"), /check constraint/);
   await db.close();
 });

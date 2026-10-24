@@ -1,12 +1,11 @@
 import { member } from "@/lib/auth";
 import { failure, json, sameOrigin } from "@/lib/http";
-import { messageSchema, nicknameSchema, postSchema } from "@/lib/domain";
+import { messageSchema, postSchema } from "@/lib/domain";
 import { z } from "zod";
 import { after } from "next/server";
 import { notifyChat } from "@/lib/push";
 import type { Message } from "@/lib/domain";
 const schemas = {
-  "profile.save": z.object({ nickname: nicknameSchema }),
   "post.save": postSchema,
   "post.status": z.object({
     id: z.uuid(),

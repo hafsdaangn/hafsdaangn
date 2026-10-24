@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { ShieldCheck, MessageCircle, Search } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { appEnvironment } from "@/lib/environment";
 import { Brand } from "@/components/ui";
 import { configured } from "@/lib/supabase/server";
@@ -23,11 +23,9 @@ export default async function Landing({
     <div className="landing">
       <header className="landing-header">
         <Brand />
-        <span>우리 학교의 작은 장터</span>
       </header>
       <main className="landing-main">
         <div className="landing-copy">
-          <span className="welcome-dot">안녕, HAFS!</span>
           <h1>
             쓰던 물건의
             <br />
@@ -65,37 +63,9 @@ export default async function Landing({
             )}
           </div>
         </div>
-        <div className="landing-art" aria-hidden="true">
-          <div className="art-paper">
-            <span className="art-label">HAFS / 함께 쓰는 일상</span>
-            <div className="large-carrot">
-              <i />
-              <i />
-              <i />
-              <b />
-            </div>
-            <div className="art-caption">
-              <strong>가까워서 더 좋은 거래.</strong>
-              <span>
-                다음 주인도, 잃어버린 주인도
-                <br />
-                생각보다 가까이 있을 거예요.
-              </span>
-            </div>
-          </div>
-          <div className="art-tag tag-one">
-            <MessageCircle size={18} />
-            점심시간에 만나요!
-          </div>
-          <div className="art-tag tag-two">
-            <Search size={18} />
-            찾았어요, 내 물건
-          </div>
-        </div>
       </main>
       <footer className="landing-footer">
         <span>합스당근 · HAFS 구성원을 위한 중고거래와 분실물 연결</span>
-        <span>학교 계정으로, 우리끼리.</span>
       </footer>
     </div>
   );

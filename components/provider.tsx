@@ -14,7 +14,6 @@ import {
   type Message,
   type Post,
   type Conversation,
-  type Profile,
 } from "@/lib/domain";
 type Model = {
   state: Snapshot | null;
@@ -155,16 +154,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
             c,
             ...current.current.conversations.filter((old) => old.id !== c.id),
           ],
-        });
-      }
-      if (op === "profile.save") {
-        const p = result as Profile;
-        apply({
-          ...current.current,
-          viewer: p,
-          profiles: current.current.profiles.map((old) =>
-            old.id === p.id ? p : old,
-          ),
         });
       }
       if (op === "post.delete") {

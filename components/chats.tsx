@@ -181,10 +181,12 @@ export function Chats({ id }: { id?: string }) {
                   className={`room-row ${c.id === id ? "selected" : ""}`}
                   key={c.id}
                 >
-                  <Avatar name={user?.nickname} />
+                  <Avatar name={user?.display_name} />
                   <div className="room-copy">
                     <div>
-                      <strong>{user?.nickname || "학교 친구"}</strong>
+                      {user?.display_name && (
+                        <strong>{user.display_name}</strong>
+                      )}
                       <small>{relativeTime(c.last_message_at)}</small>
                     </div>
                     <p>
@@ -231,10 +233,11 @@ export function Chats({ id }: { id?: string }) {
               >
                 <ArrowLeft />
               </Link>
-              <Avatar name={opposite?.nickname} />
+              <Avatar name={opposite?.display_name} />
               <div>
-                <strong>{opposite?.nickname || "학교 친구"}</strong>
-                <small>Google 계정 인증</small>
+                {opposite?.display_name && (
+                  <strong>{opposite.display_name}</strong>
+                )}
               </div>
             </header>
             <Link

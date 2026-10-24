@@ -698,6 +698,17 @@ input[type="checkbox"] {
   display: block;
   font-size: 15px;
 }
+.seller > div,
+.profile-header > div,
+.chat-header > div {
+  min-width: 0;
+}
+.seller strong,
+.profile-header h2,
+.chat-header strong,
+.room-copy strong {
+  overflow-wrap: anywhere;
+}
 .seller > div > span {
   display: flex;
   gap: 4px;
@@ -1015,9 +1026,11 @@ input[type="checkbox"] {
   gap: 6px;
 }
 .room-copy strong {
+  min-width: 0;
   font-size: 14px;
 }
 .room-copy small {
+  flex-shrink: 0;
   font-size: 10px;
   color: var(--color-muted);
 }
@@ -1221,10 +1234,6 @@ input[type="checkbox"] {
 .profile-header > .button {
   margin-left: auto;
 }
-.profile-edit {
-  max-width: 420px;
-  margin-bottom: 24px;
-}
 .profile-tabs {
   display: flex;
   gap: 28px;
@@ -1257,27 +1266,6 @@ input[type="checkbox"] {
 .settings-list > button > svg:last-child {
   margin-left: auto;
 }
-.settings-list .withdraw {
-  font-size: 12px;
-  color: var(--color-muted);
-  text-decoration: underline;
-}
-.onboarding {
-  max-width: 420px;
-  margin: 70px auto;
-  padding: 20px;
-}
-.onboarding h1 {
-  font-size: 32px;
-  line-height: 1.4;
-  font-weight: 750;
-  margin: 20px 0;
-}
-.onboarding > p {
-  margin-bottom: 32px;
-  color: var(--color-muted);
-  font-size: 14px;
-}
 .landing {
   min-height: 100dvh;
   max-width: 1200px;
@@ -1292,32 +1280,17 @@ input[type="checkbox"] {
   align-items: center;
   justify-content: space-between;
 }
-.landing-header > span {
-  color: var(--color-muted);
-  font-size: 13px;
-}
 .landing-main {
   flex: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
-  gap: 64px;
   padding: 48px 0 72px;
 }
-.welcome-dot {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--color-green);
-  font-weight: 650;
-}
-.welcome-dot:before {
-  content: "";
-  width: 7px;
-  height: 7px;
-  border-radius: var(--radius-round);
-  background: var(--color-green);
+.landing-copy {
+  width: 100%;
+  max-width: 520px;
+  margin-inline: auto;
 }
 .landing-copy h1 {
   font-size: clamp(36px, 4.1vw, 56px);
@@ -1357,100 +1330,6 @@ input[type="checkbox"] {
   font-size: 11px;
   color: var(--color-muted);
   margin-top: 12px;
-}
-.landing-art {
-  position: relative;
-  padding: 24px;
-}
-.art-paper {
-  aspect-ratio: 0.83;
-  border-radius: 4px;
-  background: var(--color-green-soft);
-  padding: 28px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-.art-label {
-  font-size: 10px;
-  letter-spacing: 1.5px;
-  color: var(--color-green);
-  align-self: flex-start;
-}
-.large-carrot {
-  position: relative;
-  width: 180px;
-  height: 230px;
-  margin: 20px 0 30px;
-  transform: rotate(22deg);
-}
-.large-carrot b {
-  position: absolute;
-  width: 108px;
-  height: 157px;
-  top: 62px;
-  left: 38px;
-  background: var(--color-accent);
-  border-radius: 44px 44px 45px 35px;
-  clip-path: polygon(0 0, 100% 0, 67% 100%, 40% 100%);
-}
-.large-carrot i {
-  width: 18px;
-  height: 70px;
-  position: absolute;
-  left: 78px;
-  top: 5px;
-  border-radius: var(--radius-round);
-  background: var(--color-green);
-}
-.large-carrot i:first-child {
-  transform: rotate(-28deg);
-  left: 54px;
-  top: 15px;
-}
-.large-carrot i:nth-child(3) {
-  transform: rotate(27deg);
-  left: 102px;
-  top: 14px;
-}
-.art-caption {
-  align-self: flex-start;
-  margin-top: auto;
-}
-.art-caption strong {
-  display: block;
-  font-size: 21px;
-  font-weight: 750;
-  letter-spacing: -0.6px;
-}
-.art-caption span {
-  display: block;
-  color: var(--color-green);
-  font-size: 12px;
-  margin-top: 10px;
-  line-height: 1.7;
-}
-.art-tag {
-  position: absolute;
-  background: var(--color-paper);
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-md);
-  padding: 13px 16px;
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  box-shadow: 0 4px 18px var(--color-shadow);
-  font-size: 13px;
-}
-.tag-one {
-  top: 140px;
-  left: -12px;
-  transform: rotate(-5deg);
-}
-.tag-two {
-  bottom: 145px;
-  right: -14px;
-  transform: rotate(4deg);
 }
 .landing-footer {
   border-top: 1px solid var(--color-line);
@@ -1802,9 +1681,6 @@ input[type="checkbox"] {
   .landing-header {
     height: 84px;
   }
-  .landing-header > span {
-    display: none;
-  }
   .landing-main {
     display: flex;
     flex-direction: column;
@@ -1823,16 +1699,10 @@ input[type="checkbox"] {
     max-width: none;
     margin-top: 30px;
   }
-  .landing-art {
-    display: none;
-  }
   .landing-footer {
     font-size: 10px;
     flex-direction: column;
     gap: 6px;
-  }
-  .landing-footer > span:last-child {
-    display: none;
   }
   .google-button {
     font-size: 13px;

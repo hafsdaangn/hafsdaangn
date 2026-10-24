@@ -121,7 +121,6 @@ export function Feed({ lost = false }: { lost?: boolean }) {
               : "필요한 물건은 가까이, 쓰던 물건은 다음 친구에게."}
           </p>
         </div>
-        <span className="school-chip">HAFS 안에서 함께</span>
       </div>
       <SearchInput
         value={search}

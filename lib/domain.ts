@@ -18,7 +18,7 @@ export const places = [
 ] as const;
 export type Kind = "sale" | "giveaway" | "barter" | "lost" | "found";
 export type Status = "active" | "reserved" | "completed";
-export type Profile = { id: string; nickname: string };
+export type Profile = { id: string; display_name: string };
 export type Post = {
   id: string;
   author_id: string;
@@ -118,11 +118,6 @@ export function relativeTime(value: string) {
 export function isSchoolEmail(email: string | undefined) {
   return !!email && /^[^\s@]+@hafs\.hs\.kr$/i.test(email);
 }
-export const nicknameSchema = z
-  .string()
-  .trim()
-  .min(2, "닉네임은 2자 이상 입력해 주세요.")
-  .max(16, "닉네임은 16자까지 입력할 수 있어요.");
 export const postSchema = z
   .object({
     id: z.uuid().optional(),
