@@ -3,7 +3,7 @@ import { serverClient } from "@/lib/supabase/server";
 import { member } from "@/lib/auth";
 export async function GET(request: Request) {
   const url = new URL(request.url),
-    origin = process.env.APP_URL || url.origin;
+    origin = new URL(process.env.APP_URL || url.origin).origin;
   const code = url.searchParams.get("code");
   const client = await serverClient();
   if (code) {

@@ -18,9 +18,17 @@ export async function GET() {
         .order("seq", { ascending: false })
         .limit(500),
     ]);
-    const error = results.find((r) => r.error)?.error;
-    if (error)
-      throw new Error("데이터를 불러오지 못했어요. 연결 설정을 확인해 주세요.");
+    const failedIndex = results.findIndex((r) => r.error);
+    if (failedIndex !== -1) {
+      console.error("Initial data query failed", {
+        resource: ["profiles", "posts", "inbox", "messages"][failedIndex],
+        code: results[failedIndex].error?.code,
+      });
+      return failure(
+        new Error("데이터를 불러오지 못했어요. 잠시 후 다시 시도해 주세요."),
+        503,
+      );
+    }
     const profiles = results[0].data ?? [];
     return json({
       viewer: profiles.find((p) => p.id === user.id) ?? {

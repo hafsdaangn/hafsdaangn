@@ -3,7 +3,7 @@ import { configured, serverClient } from "@/lib/supabase/server";
 import { appEnvironment } from "@/lib/environment";
 import { ensureAuthPolicy } from "@/lib/auth-policy";
 export async function GET(request: Request) {
-  const origin = process.env.APP_URL || new URL(request.url).origin;
+  const origin = new URL(process.env.APP_URL || request.url).origin;
   if (!configured())
     return NextResponse.redirect(new URL("/?error=setup", origin));
   try {

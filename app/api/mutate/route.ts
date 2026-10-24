@@ -2,6 +2,9 @@ import { member } from "@/lib/auth";
 import { failure, json, sameOrigin } from "@/lib/http";
 import { messageSchema, nicknameSchema, postSchema } from "@/lib/domain";
 import { z } from "zod";
+import { after } from "next/server";
+import { notifyChat } from "@/lib/push";
+import type { Message } from "@/lib/domain";
 const schemas = {
   "profile.save": z.object({ nickname: nicknameSchema }),
   "post.save": postSchema,
@@ -37,6 +40,14 @@ export async function POST(request: Request) {
           ? error.message
           : "요청한 내용을 저장하지 못했어요. 입력을 확인하고 다시 시도해 주세요.",
       );
+    if (op === "message.send")
+      after(async () => {
+        try {
+          await notifyChat(data as Message);
+        } catch {
+          console.error("Chat push processing failed");
+        }
+      });
     return json(data);
   } catch (e) {
     return failure(e);

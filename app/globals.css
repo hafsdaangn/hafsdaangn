@@ -1876,3 +1876,36 @@ input[type="checkbox"] {
     scroll-behavior: auto !important;
   }
 }
+.push-settings {
+  margin: 16px 20px;
+  padding: 14px;
+  border: 1px solid var(--border, #e9e5df);
+  border-radius: 12px;
+  background: var(--surface, #fff);
+  font-size: 13px;
+}
+.push-settings-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.push-settings p {
+  line-height: 1.6;
+  margin: 8px 0;
+  color: var(--muted, #706d67);
+}
+.push-toggle {
+  padding: 7px 10px;
+  border: 1px solid currentColor;
+  border-radius: 7px;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+.push-toggle:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+.push-toggle + .push-toggle {
+  margin-left: 8px;
+}

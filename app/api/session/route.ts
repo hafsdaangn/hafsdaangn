@@ -1,10 +1,12 @@
 import { member } from "@/lib/auth";
 import { serverClient } from "@/lib/supabase/server";
 import { failure, json, sameOrigin } from "@/lib/http";
+import { forgetPushDevice } from "@/lib/push";
 export async function POST(request: Request) {
   try {
     sameOrigin(request);
     const { action } = await request.json();
+    if (action === "delete" || action === "logout") await forgetPushDevice();
     if (action === "delete") {
       const { client } = await member();
       const { error } = await client.rpc("mutate", {

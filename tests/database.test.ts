@@ -139,6 +139,55 @@ test("Postgres schema enforces membership, ownership, media and private chat", a
   };
   const sent = await mutate(buyer, "message.send", message);
   assert.equal((await mutate(buyer, "message.send", message)).id, sent.id);
+  const device = testId(80);
+  await db.query(
+    "insert into public.push_subscriptions(endpoint,device_id,user_id,keys) values($1,$2,$3,$4)",
+    [
+      "https://web.push.apple.com/test",
+      device,
+      seller,
+      { p256dh: "key", auth: "secret" },
+    ],
+  );
+  for (const uid of [seller, buyer, stranger]) {
+    await assert.rejects(
+      as(uid, (tx) => tx.query("select * from public.push_subscriptions")),
+      /permission denied/,
+    );
+    await assert.rejects(
+      as(uid, (tx) => tx.query("delete from public.push_subscriptions")),
+      /permission denied/,
+    );
+    await assert.rejects(
+      as(uid, (tx) => tx.query("select * from public.push_deliveries")),
+      /permission denied/,
+    );
+  }
+  await db.query(
+    "insert into public.push_deliveries(message_id,device_id) values($1,$2)",
+    [sent.id, device],
+  );
+  await assert.rejects(
+    db.query(
+      "insert into public.push_deliveries(message_id,device_id) values($1,$2)",
+      [sent.id, device],
+    ),
+    /duplicate key/,
+  );
+  await db.query("update private.members set active=false where id=$1", [
+    seller,
+  ]);
+  assert.equal(
+    (await db.query("select * from public.push_subscriptions")).rows.length,
+    0,
+  );
+  assert.equal(
+    (await db.query("select * from public.push_deliveries")).rows.length,
+    0,
+  );
+  await db.query("update private.members set active=true where id=$1", [
+    seller,
+  ]);
   await assert.rejects(
     mutate(stranger, "message.send", { ...message, client_id: testId(31) }),
     /접근/,

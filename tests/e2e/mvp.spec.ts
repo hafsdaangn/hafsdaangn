@@ -1,4 +1,22 @@
 import { test, expect } from "@playwright/test";
+test("web push assets are public while subscription APIs require login", async ({
+  request,
+}) => {
+  const response = await request.get("/manifest.webmanifest");
+  expect(response.ok()).toBe(true);
+  const manifest = await response.json();
+  expect(manifest.display).toBe("standalone");
+  expect(manifest.start_url).toBe("/app/chats");
+  for (const icon of manifest.icons)
+    expect((await request.get(icon.src)).ok()).toBe(true);
+  const worker = await request.get("/sw.js");
+  expect(worker.ok()).toBe(true);
+  expect(worker.headers()["cache-control"]).toContain("no-store");
+  expect(await worker.text()).toContain("notificationclick");
+  expect((await request.get("/api/push")).ok()).toBe(false);
+  expect((await request.post("/api/push", { data: {} })).ok()).toBe(false);
+  expect((await request.delete("/api/push")).ok()).toBe(false);
+});
 test("login landing and protected routes", async ({
   page,
   request,

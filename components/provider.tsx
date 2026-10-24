@@ -48,8 +48,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setState(value);
   }, []);
   const refresh = useCallback(async () => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
     try {
-      const data = await api<Snapshot>("/api/data");
+      const data = await api<Snapshot>("/api/data", {
+        signal: controller.signal,
+      });
       const old = current.current;
       apply({
         ...data,
@@ -63,7 +67,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       });
       setError("");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "데이터를 불러오지 못했어요.");
+      setError(
+        controller.signal.aborted
+          ? "데이터 요청이 오래 걸리고 있어요. 연결을 확인한 뒤 다시 불러와 주세요."
+          : e instanceof Error
+            ? e.message
+            : "데이터를 불러오지 못했어요.",
+      );
+    } finally {
+      clearTimeout(timeout);
     }
   }, [apply]);
   useEffect(() => {
