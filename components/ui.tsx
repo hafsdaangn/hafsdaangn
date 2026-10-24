@@ -147,7 +147,9 @@ export function PostCard({ post }: { post: Post }) {
           <span>·</span>
           {relativeTime(post.created_at)}
         </p>
-        {isMarket(post.kind) ? (
+        {post.kind === "barter" ? (
+          <small>받고 싶은 물건 · {post.wanted}</small>
+        ) : isMarket(post.kind) ? (
           <strong className={post.kind === "giveaway" ? "text-green" : ""}>
             {priceLabel(post)}
           </strong>

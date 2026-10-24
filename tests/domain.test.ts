@@ -30,6 +30,13 @@ test("post rules enforce prices, images and lost dates", () => {
   assert.equal(postSchema.safeParse(base).success, true);
   assert.equal(postSchema.safeParse({ ...base, price: 0 }).success, false);
   assert.equal(postSchema.safeParse({ ...base, image_ids: [] }).success, false);
+  const barter = { ...base, kind: "barter", price: 0, wanted: "문제집" };
+  assert.equal(postSchema.safeParse(barter).success, true);
+  assert.equal(postSchema.safeParse({ ...barter, wanted: "" }).success, false);
+  assert.equal(
+    postSchema.safeParse({ ...base, wanted: "문제집" }).success,
+    false,
+  );
   assert.equal(
     postSchema.safeParse({ ...base, kind: "giveaway", price: 1000 }).success,
     false,

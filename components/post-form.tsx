@@ -64,6 +64,7 @@ export function PostForm({
       place: form.get("place"),
       occurred_on: isMarket(kind) ? null : form.get("occurred_on"),
       custody: form.get("custody") ?? "",
+      wanted: kind === "barter" ? form.get("wanted") : "",
       image_ids: photos,
     };
     const parsed = postSchema.safeParse(raw);
@@ -181,6 +182,7 @@ export function PostForm({
                 : [
                     { value: "sale", label: "판매" },
                     { value: "giveaway", label: "무료나눔" },
+                    { value: "barter", label: "물물교환" },
                   ]
               ).map((item) => (
                 <button
@@ -248,6 +250,20 @@ export function PostForm({
                   </div>
                 </div>
               )}
+            </div>
+          )}
+          {kind === "barter" && (
+            <div className="field">
+              <label htmlFor="wanted">받고 싶은 물건</label>
+              <input
+                id="wanted"
+                name="wanted"
+                maxLength={60}
+                required
+                minLength={2}
+                defaultValue={post?.wanted}
+                placeholder="예: 문제집, 보조배터리"
+              />
             </div>
           )}
           <div className="field">

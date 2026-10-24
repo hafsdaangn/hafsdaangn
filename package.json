@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "tsx --test tests/domain.test.ts tests/database.test.ts tests/push.test.ts",
+    "pretest:e2e": "next build",
     "test:e2e": "playwright test",
     "format": "prettier --write app components lib tests tokens.css playwright.config.ts"
   },
@@ -25,7 +26,7 @@
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.8",
-    "@playwright/test": "1.63.0",
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

@@ -42,3 +42,18 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Playwright
+node_modules/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
+
+# Supabase CLI temp files
+supabase/.temp/*
+!supabase/.temp/cli-latest
+
+# Local AI agent skills & config
+.agents/
+.claude/
+skills-lock.json

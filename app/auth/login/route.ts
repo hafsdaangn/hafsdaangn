@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   const { data, error } = await client.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: `${origin}/auth/callback`,
+      redirectTo: new URL("/auth/callback", origin).toString(),
       queryParams:
         appEnvironment() === "production"
           ? { hd: "hafs.hs.kr", prompt: "select_account" }

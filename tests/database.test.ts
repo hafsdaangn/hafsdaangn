@@ -121,6 +121,38 @@ test("Postgres schema enforces membership, ownership, media and private chat", a
     as(buyer, (tx) => tx.exec("update public.posts set price=1")),
     /permission denied/,
   );
+  await db.query(
+    "insert into public.media(id,owner_id,path) values($1,$2,'barter.webp'),($3,$2,'extra.webp')",
+    [testId(70), seller, testId(71)],
+  );
+  const barterPayload = {
+    ...payload,
+    id: testId(21),
+    image_ids: [testId(70)],
+    kind: "barter",
+    price: 0,
+    wanted: "문제집",
+  };
+  const barter = (await mutate(seller, "post.save", barterPayload)) as {
+    kind: string;
+    wanted: string;
+  };
+  assert.equal(barter.kind, "barter");
+  assert.equal(barter.wanted, "문제집");
+  await assert.rejects(
+    mutate(seller, "post.save", { ...barterPayload, wanted: "" }),
+    /check constraint/,
+  );
+  await assert.rejects(
+    mutate(seller, "post.save", {
+      ...payload,
+      id: testId(22),
+      image_ids: [testId(71)],
+      wanted: "x요",
+    }),
+    /check constraint/,
+  );
+  await mutate(seller, "post.delete", { id: testId(21) });
   const room = await mutate(buyer, "conversation.create", { post_id: postId });
   assert.equal(
     (await mutate(buyer, "conversation.create", { post_id: postId })).id,
