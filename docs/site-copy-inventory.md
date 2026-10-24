@@ -61,8 +61,8 @@
 | C011 | 잃어버린 물건도 다시 만나는 합스당근. | 표시 / 안내 | app/page.tsx:41 | |
 | C012 | Google 계정으로 시작하기 | 표시 / 안내 | app/page.tsx:52 | |
 | C013 | 학교 Google 계정으로 시작하기 | 표시 / 안내 | app/page.tsx:53 | |
-| C014 | 개발 환경 · 모든 Google 계정을 사용할 수 있어요 | 표시 / 안내 | app/page.tsx:58 | |
-| C015 | @hafs.hs.kr 계정만 이용할 수 있어요 | 표시 / 안내 | app/page.tsx:59 | |
+| C014 | 개발 환경 · 모든 Google 계정을 사용할 수 있어요 | 표시 / 안내 | app/page.tsx:58 | 삭제 완료 |
+| C015 | @hafs.hs.kr 계정만 이용할 수 있어요 | 표시 / 안내 | app/page.tsx:59 | 삭제 완료 |
 | C016 | HAFS / 함께 쓰는 일상 | 표시 / 안내 | app/page.tsx:70 | 삭제 완료 |
 | C017 | 가까워서 더 좋은 거래. | 표시 / 안내 | app/page.tsx:78 | 삭제 완료 |
 | C018 | 다음 주인도, 잃어버린 주인도 | 표시 / 안내 | app/page.tsx:80 | 삭제 완료 |

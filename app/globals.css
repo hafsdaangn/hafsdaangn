@@ -1318,19 +1318,6 @@ input[type="checkbox"] {
   font-size: 14px;
   min-height: 54px;
 }
-.google-letter {
-  font-size: 20px;
-  font-weight: 800;
-}
-.login-actions > small {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 5px;
-  font-size: 11px;
-  color: var(--color-muted);
-  margin-top: 12px;
-}
 .landing-footer {
   border-top: 1px solid var(--color-line);
   padding: 24px 0;

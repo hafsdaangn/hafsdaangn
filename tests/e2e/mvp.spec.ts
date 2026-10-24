@@ -30,13 +30,6 @@ test("login landing and protected routes", async ({
         : "학교 Google 계정으로 시작하기",
     }),
   ).toBeVisible();
-  await expect(
-    page.getByText(
-      development
-        ? "개발 환경 · 모든 Google 계정을 사용할 수 있어요"
-        : "@hafs.hs.kr 계정만 이용할 수 있어요",
-    ),
-  ).toBeVisible();
   await expect(page.locator('a[href^="/demo"]')).toHaveCount(0);
   for (const path of ["/demo", "/demo/new", "/demo/chats"])
     expect((await request.get(path)).status()).toBe(404);

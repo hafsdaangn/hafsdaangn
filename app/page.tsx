@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import { ShieldCheck } from "lucide-react";
 import { appEnvironment } from "@/lib/environment";
 import { Brand } from "@/components/ui";
 import { configured } from "@/lib/supabase/server";
@@ -43,19 +42,10 @@ export default async function Landing({
               className={`button google-button ${!ready ? "not-ready" : ""}`}
               href="/auth/login"
             >
-              <span className="google-letter" aria-hidden="true">
-                G
-              </span>
               {development
                 ? "Google 계정으로 시작하기"
                 : "학교 Google 계정으로 시작하기"}
             </a>
-            <small>
-              <ShieldCheck size={14} />
-              {development
-                ? "개발 환경 · 모든 Google 계정을 사용할 수 있어요"
-                : "@hafs.hs.kr 계정만 이용할 수 있어요"}
-            </small>
             {error && (
               <p className="error-notice" role="alert">
                 {errors[error] ?? errors.login}
