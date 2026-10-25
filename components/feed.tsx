@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { useSearchParams, usePathname } from "next/navigation";
 import { SlidersHorizontal, ArrowDown, X } from "lucide-react";
 import { categories, places, type Post } from "@/lib/domain";
 import { useApp } from "./provider";
@@ -16,7 +16,6 @@ import {
 export function Feed({ lost = false }: { lost?: boolean }) {
   const { state, addPosts } = useApp(),
     params = useSearchParams(),
-    router = useRouter(),
     path = usePathname();
   const q = params.get("q") ?? "",
     category = params.get("category") ?? "전체",
@@ -24,7 +23,7 @@ export function Feed({ lost = false }: { lost?: boolean }) {
     place = params.get("place") ?? "전체",
     available = params.get("available") !== "false";
   const [search, setSearch] = useState(q),
-    [busy, setBusy] = useState(false),
+    [busy, setBusy] = useState(true),
     [error, setError] = useState(""),
     [remote, setRemote] = useState<Post[]>([]),
     [more, setMore] = useState(false);
@@ -37,7 +36,12 @@ export function Feed({ lost = false }: { lost?: boolean }) {
     const next = new URLSearchParams(latest.current);
     if (value === "all" || value === "전체" || value === "") next.delete(key);
     else next.set(key, value);
-    router.replace(`${path}${next.size ? `?${next}` : ""}`, { scroll: false });
+    latest.current = next.toString();
+    window.history.replaceState(
+      null,
+      "",
+      `${path}${next.size ? `?${next}` : ""}`,
+    );
   }
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -45,13 +49,16 @@ export function Feed({ lost = false }: { lost?: boolean }) {
         const next = new URLSearchParams(latest.current);
         if (search) next.set("q", search);
         else next.delete("q");
-        router.replace(`${path}${next.size ? `?${next}` : ""}`, {
-          scroll: false,
-        });
+        latest.current = next.toString();
+        window.history.replaceState(
+          null,
+          "",
+          `${path}${next.size ? `?${next}` : ""}`,
+        );
       }
     }, 250);
     return () => clearTimeout(timer);
-  }, [search, q, path, router]);
+  }, [search, q, path]);
   useEffect(() => {
     queueMicrotask(() => setSearch(q));
   }, [q]);
@@ -78,22 +85,30 @@ export function Feed({ lost = false }: { lost?: boolean }) {
         if (n === version.current) {
           setRemote(data.posts);
           setMore(data.hasMore);
-          addPosts(data.posts);
         }
       })
       .catch((e) => {
-        if (e.name !== "AbortError") setError(e.message);
+        if (n === version.current && e.name !== "AbortError")
+          setError(e.message);
       })
       .finally(() => {
         if (n === version.current) setBusy(false);
       });
-    return () => controller.abort();
-  }, [queryString, addPosts]);
-  if (!state) return null;
+    return () => {
+      controller.abort();
+      version.current = n + 1;
+    };
+  }, [queryString]);
+  // The feed can finish before the rest of the app's initial data.
+  const ready = Boolean(state);
+  useEffect(() => {
+    if (ready && remote.length) addPosts(remote);
+  }, [ready, remote, addPosts]);
   const posts = remote;
   async function loadMore() {
     const last = remote.at(-1);
-    if (!last) return;
+    if (!last || busy) return;
+    const n = version.current;
     setBusy(true);
     try {
       const r = await fetch(
@@ -101,13 +116,13 @@ export function Feed({ lost = false }: { lost?: boolean }) {
         ),
         data = await r.json();
       if (!r.ok) throw new Error(data.error);
+      if (n !== version.current) return;
       setRemote((old) => [...old, ...data.posts]);
       setMore(data.hasMore);
-      addPosts(data.posts);
     } catch (e) {
-      setError((e as Error).message);
+      if (n === version.current) setError((e as Error).message);
     } finally {
-      setBusy(false);
+      if (n === version.current) setBusy(false);
     }
   }
   return (
@@ -212,7 +227,8 @@ export function Feed({ lost = false }: { lost?: boolean }) {
                 className="button secondary"
                 onClick={() => {
                   setSearch("");
-                  router.replace(path);
+                  latest.current = "";
+                  window.history.replaceState(null, "", path);
                 }}
               >
                 <X size={16} />

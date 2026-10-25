@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
-import { LogOut, ChevronRight } from "lucide-react";
+import Link from "next/link";
+import { Bell, LogOut, ChevronRight } from "lucide-react";
 import type { Post } from "@/lib/domain";
 import { useApp } from "./provider";
 import {
@@ -12,7 +13,7 @@ import {
   Spinner,
 } from "./ui";
 export function ProfilePage() {
-  const { state } = useApp(),
+  const { state, base } = useApp(),
     [tab, setTab] = useState("active"),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
@@ -123,6 +124,11 @@ export function ProfilePage() {
         </button>
       )}
       <div className="settings-list">
+        <Link href={`${base}/me/notifications`}>
+          <Bell size={18} />
+          알림 설정
+          <ChevronRight size={17} />
+        </Link>
         <button disabled={busy} onClick={() => void logout()}>
           <LogOut size={18} />
           로그아웃

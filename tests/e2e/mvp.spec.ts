@@ -16,6 +16,16 @@ test("web push assets are public while subscription APIs require login", async (
   expect((await request.get("/api/push")).ok()).toBe(false);
   expect((await request.post("/api/push", { data: {} })).ok()).toBe(false);
   expect((await request.delete("/api/push")).ok()).toBe(false);
+  for (const path of [
+    "/api/data",
+    "/api/posts?type=market&q=교재",
+    "/api/messages?conversation=00000000-0000-4000-8000-000000000001",
+    "/api/media/00000000-0000-4000-8000-000000000001",
+  ]) {
+    const response = await request.get(path);
+    expect(response.ok()).toBe(false);
+    expect(response.headers()["cache-control"]).toContain("no-store");
+  }
 });
 test("login landing and protected routes", async ({
   page,

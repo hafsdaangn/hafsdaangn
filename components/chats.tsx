@@ -16,7 +16,6 @@ import {
   relativeTime,
 } from "@/lib/domain";
 import { useApp } from "./provider";
-import { PushSettings } from "./push-settings";
 import {
   Avatar,
   Empty,
@@ -164,7 +163,6 @@ export function Chats({ id }: { id?: string }) {
       <aside className="chat-sidebar">
         <PageHeading title="채팅" />
         <p className="section-subtitle">물건도, 마음도 가까이.</p>
-        <PushSettings />
         <div className="room-list">
           {rooms.length ? (
             rooms.map((c) => {

@@ -10,6 +10,7 @@ import { PostDetail } from "./post-detail";
 import { PostForm } from "./post-form";
 import { Chats } from "./chats";
 import { ProfilePage } from "./profile";
+import { PushSettings } from "./push-settings";
 export function Workspace() {
   const { state, base, error, refresh } = useApp(),
     pathname = usePathname(),
@@ -78,7 +79,7 @@ export function Workspace() {
         </div>
       </header>
       <main id="content">
-        {!state ? (
+        {!state && section !== "market" && section !== "lost" ? (
           <div className="loading-page">
             {error ? (
               <>
@@ -103,6 +104,14 @@ export function Workspace() {
             {error && (
               <div className="page-width">
                 <ErrorNotice message={error} />
+                {!state && (
+                  <button
+                    className="button secondary"
+                    onClick={() => void refresh()}
+                  >
+                    다시 불러오기
+                  </button>
+                )}
               </div>
             )}
             {section === "market" ? (
@@ -120,7 +129,11 @@ export function Workspace() {
             ) : section === "chats" ? (
               <Chats id={path[1]} key={path[1] ?? "list"} />
             ) : section === "me" ? (
-              <ProfilePage />
+              path[1] === "notifications" ? (
+                <PushSettings />
+              ) : (
+                <ProfilePage />
+              )
             ) : (
               <Feed />
             )}

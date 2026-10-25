@@ -1254,7 +1254,8 @@ input[type="checkbox"] {
   margin-top: 44px;
   padding-top: 12px;
 }
-.settings-list > button {
+.settings-list > button,
+.settings-list > a {
   display: flex;
   gap: 12px;
   align-items: center;
@@ -1263,7 +1264,8 @@ input[type="checkbox"] {
   font-size: 14px;
   text-align: left;
 }
-.settings-list > button > svg:last-child {
+.settings-list > button > svg:last-child,
+.settings-list > a > svg:last-child {
   margin-left: auto;
 }
 .landing {
@@ -1750,11 +1752,11 @@ input[type="checkbox"] {
   }
 }
 .push-settings {
-  margin: 16px 20px;
-  padding: 14px;
-  border: 1px solid var(--border, #e9e5df);
+  margin: 20px 0;
+  padding: 20px;
+  border: 1px solid var(--color-line);
   border-radius: 12px;
-  background: var(--surface, #fff);
+  background: var(--color-surface, #fff);
   font-size: 13px;
 }
 .push-settings-title {
@@ -1765,7 +1767,7 @@ input[type="checkbox"] {
 .push-settings p {
   line-height: 1.6;
   margin: 8px 0;
-  color: var(--muted, #706d67);
+  color: var(--color-muted);
 }
 .push-toggle {
   padding: 7px 10px;
@@ -1781,4 +1783,61 @@ input[type="checkbox"] {
 }
 .push-toggle + .push-toggle {
   margin-left: 8px;
+}
+.notification-page {
+  padding-top: 32px;
+  padding-bottom: 40px;
+}
+.notification-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 20px;
+  color: var(--color-muted);
+  font-size: 14px;
+}
+.push-settings h2 {
+  margin: 0;
+  font-size: 16px;
+}
+.notification-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+.notification-switch {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  width: 48px;
+  height: 44px;
+  padding: 9px 0;
+  background: transparent;
+}
+.notification-switch span {
+  display: block;
+  width: 48px;
+  height: 26px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--color-muted);
+}
+.notification-switch span::after {
+  content: "";
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: white;
+}
+.notification-switch[aria-checked="true"] span {
+  background: var(--color-accent);
+}
+.notification-switch[aria-checked="true"] span::after {
+  transform: translateX(22px);
+}
+.notification-switch:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }

@@ -13,4 +13,6 @@ export async function proxy(request: NextRequest) {
   response.headers.set("Cache-Control", "private, no-store");
   return response;
 }
-export const config = { matcher: ["/app/:path*", "/api/:path*", "/auth/:path*"] };
+// API handlers authenticate and refresh cookies themselves via member()/serverClient().
+// Running getUser here too adds an extra Auth round trip to every query and image.
+export const config = { matcher: ["/app/:path*", "/auth/:path*"] };
