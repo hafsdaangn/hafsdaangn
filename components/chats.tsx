@@ -216,7 +216,7 @@ export function Chats({ id }: { id?: string }) {
         {!id ? (
           <Empty
             title="대화를 선택해 주세요"
-            body="학교 친구와 거래를 이야기해 보세요."
+            body="학교 친구와 나눔을 이야기해 보세요."
             action={<MessageCircle size={28} />}
           />
         ) : !room ? (

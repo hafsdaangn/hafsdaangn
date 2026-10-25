@@ -115,7 +115,7 @@ export function PostDetail({
   return (
     <section className="detail-page">
       <PageHeading
-        title={market ? "상품 상세" : "분실물 상세"}
+        title={market ? "나눔 상세" : "분실물 상세"}
         back={market ? base : `${base}/lost`}
       />
       <div className="detail-grid">
@@ -169,17 +169,11 @@ export function PostDetail({
                 {priceLabel(post)}
               </strong>
             )}
-            {post.kind === "barter" && (
-              <div className="wanted-note">
-                <span>받고 싶은 물건</span>
-                <strong>{post.wanted}</strong>
-              </div>
-            )}
             <p className="description">{post.body}</p>
             <div className="location-info">
               <MapPin size={19} />
               <div>
-                <span>{market ? "희망 거래 장소" : "분실·발견 장소"}</span>
+                <span>{market ? "희망 나눔 장소" : "분실·발견 장소"}</span>
                 <strong>{post.place}</strong>
               </div>
             </div>
@@ -215,11 +209,11 @@ export function PostDetail({
                 }
               >
                 <option value="active">
-                  {market ? "거래 가능" : "찾는 중"}
+                  {market ? "나눔 중" : "찾는 중"}
                 </option>
                 {market && <option value="reserved">예약 중</option>}
                 <option value="completed">
-                  {market ? "거래 완료" : "해결 완료"}
+                  {market ? "나눔 완료" : "해결 완료"}
                 </option>
               </select>
               <div className="owner-buttons">
@@ -265,7 +259,7 @@ export function PostDetail({
           ) : (
             <div className="detail-action">
               <div>
-                <small>{market ? "거래 금액" : "분실물 연결"}</small>
+                <small>{market ? "가격" : "분실물 연결"}</small>
                 <strong>{priceLabel(post)}</strong>
               </div>
               <button

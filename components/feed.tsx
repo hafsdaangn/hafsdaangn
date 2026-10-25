@@ -129,7 +129,7 @@ export function Feed({ lost = false }: { lost?: boolean }) {
     <section className="feed page-width">
       <div className="feed-intro">
         <div>
-          <PageHeading title={lost ? "분실물" : "우리 학교 장터"} />
+          <PageHeading title={lost ? "분실물" : "우리 학교 나눔"} />
           <p>
             {lost
               ? "잃어버린 물건, 여기서 찾아요."
@@ -178,13 +178,10 @@ export function Feed({ lost = false }: { lost?: boolean }) {
           ) : (
             <select
               aria-label="글 유형 필터"
-              value={kind}
+              value={kind === "all" ? "giveaway" : kind}
               onChange={(e) => filter("kind", e.target.value)}
             >
-              <option value="all">전체 유형</option>
-              <option value="sale">판매</option>
               <option value="giveaway">나눔</option>
-              <option value="barter">물물교환</option>
             </select>
           )}
           <label className="checkbox-label">
@@ -193,7 +190,7 @@ export function Feed({ lost = false }: { lost?: boolean }) {
               checked={available}
               onChange={(e) => filter("available", String(e.target.checked))}
             />
-            {lost ? "찾는 중만" : "거래 가능한 글"}
+            {lost ? "찾는 중만" : "나눔 가능한 글"}
           </label>
         </div>
         <span className="sort-label">

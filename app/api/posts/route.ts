@@ -32,7 +32,7 @@ export async function GET(request: Request) {
     }
     const type = params.get("type");
     if (type === "market")
-      query = query.in("kind", ["sale", "giveaway", "barter"]);
+      query = query.in("kind", ["giveaway"]);
     if (type === "lost") query = query.in("kind", ["lost", "found"]);
     for (const word of searchKeywords(params.get("q")))
       query = query.or(

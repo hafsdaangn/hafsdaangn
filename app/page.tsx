@@ -33,7 +33,7 @@ export default async function Landing({
             <em>우리 학교에서.</em>
           </h1>
           <p>
-            필요한 물건을 사고, 나누고.
+            필요한 물건을 나누고.
             <br />
             잃어버린 물건도 다시 만나는 합스당근.
           </p>
@@ -55,7 +55,7 @@ export default async function Landing({
         </div>
       </main>
       <footer className="landing-footer">
-        <span>합스당근 · HAFS 구성원을 위한 중고거래와 분실물 연결</span>
+        <span>합스당근 · HAFS 구성원을 위한 나눔과 분실물 연결</span>
       </footer>
     </div>
   );

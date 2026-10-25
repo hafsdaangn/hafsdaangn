@@ -23,13 +23,12 @@ export function PostForm({
     router = useRouter(),
     fileRef = useRef<HTMLInputElement>(null);
   const [kind, setKind] = useState<Kind>(
-      post?.kind ?? (lost ? "lost" : "sale"),
+      post?.kind ?? (lost ? "lost" : "giveaway"),
     ),
     [photos, setPhotos] = useState(post?.image_ids ?? []),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
-    [uploading, setUploading] = useState(false),
-    [price, setPrice] = useState(String(post?.price || ""));
+    [uploading, setUploading] = useState(false);
   async function files(files: FileList | null) {
     if (!files) return;
     if (files.length + photos.length > 5) {
@@ -59,12 +58,12 @@ export function PostForm({
       kind,
       title: form.get("title"),
       body: form.get("body"),
-      price: kind === "sale" ? Number(price) : 0,
+      price: 0,
       category: form.get("category") ?? "기타",
       place: form.get("place"),
       occurred_on: isMarket(kind) ? null : form.get("occurred_on"),
       custody: form.get("custody") ?? "",
-      wanted: kind === "barter" ? form.get("wanted") : "",
+      wanted: "",
       image_ids: photos,
     };
     const parsed = postSchema.safeParse(raw);
@@ -87,7 +86,7 @@ export function PostForm({
   return (
     <section className="form-page">
       <PageHeading
-        title={post ? "게시글 수정" : lost ? "분실물 글쓰기" : "장터 글쓰기"}
+        title={post ? "게시글 수정" : lost ? "분실물 글쓰기" : "나눔 글쓰기"}
         back={post ? `${base}/posts/${post.id}` : lost ? `${base}/lost` : base}
       />
       <form onSubmit={submit} className="post-form">
@@ -179,11 +178,7 @@ export function PostForm({
                     { value: "lost", label: "잃어버렸어요" },
                     { value: "found", label: "주웠어요" },
                   ]
-                : [
-                    { value: "sale", label: "판매" },
-                    { value: "giveaway", label: "무료나눔" },
-                    { value: "barter", label: "물물교환" },
-                  ]
+                : [{ value: "giveaway", label: "나눔" }]
               ).map((item) => (
                 <button
                   type="button"
@@ -217,53 +212,17 @@ export function PostForm({
             />
           </div>
           {market && (
-            <div className="form-columns">
-              <div className="field">
-                <label htmlFor="category">카테고리</label>
-                <select
-                  id="category"
-                  name="category"
-                  defaultValue={post?.category ?? categories[0]}
-                >
-                  {categories.map((c) => (
-                    <option key={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-              {kind === "sale" && (
-                <div className="field">
-                  <label htmlFor="price">가격</label>
-                  <div className="price-input">
-                    <input
-                      id="price"
-                      type="number"
-                      min={1}
-                      max={100000000}
-                      step={1}
-                      inputMode="numeric"
-                      required
-                      value={price}
-                      onChange={(e) => setPrice(e.target.value)}
-                      placeholder="0"
-                    />
-                    <span>원</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-          {kind === "barter" && (
             <div className="field">
-              <label htmlFor="wanted">받고 싶은 물건</label>
-              <input
-                id="wanted"
-                name="wanted"
-                maxLength={60}
-                required
-                minLength={2}
-                defaultValue={post?.wanted}
-                placeholder="예: 문제집, 보조배터리"
-              />
+              <label htmlFor="category">카테고리</label>
+              <select
+                id="category"
+                name="category"
+                defaultValue={post?.category ?? categories[0]}
+              >
+                {categories.map((c) => (
+                  <option key={c}>{c}</option>
+                ))}
+              </select>
             </div>
           )}
           <div className="field">
@@ -286,7 +245,7 @@ export function PostForm({
           <div className="form-columns">
             <div className="field">
               <label htmlFor="place">
-                {market ? "희망 거래 장소" : "분실·발견 장소"}
+                {market ? "희망 나눔 장소" : "분실·발견 장소"}
               </label>
               <select
                 id="place"

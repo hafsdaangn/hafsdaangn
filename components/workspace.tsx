@@ -29,7 +29,7 @@ export function Workspace() {
   const navigation = [
     {
       path: "",
-      label: "장터",
+      label: "나눔",
       icon: Home,
       active: section === "market" || section === "posts" || section === "new",
     },
@@ -61,7 +61,7 @@ export function Workspace() {
       </a>
       <header className="site-header">
         <div className="header-inner">
-          <Link href={base} aria-label="합스당근 장터">
+          <Link href={base} aria-label="합스당근 나눔">
             <Brand />
           </Link>
           <nav aria-label="주요 메뉴">
