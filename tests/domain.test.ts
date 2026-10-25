@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isSchoolEmail, postSchema } from "../lib/domain";
+import { isSchoolEmail, postSchema, searchKeywords } from "../lib/domain";
 const testId = (n: number) =>
   `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 test("school email requires exact domain and one @", () => {
@@ -14,6 +14,18 @@ test("school email requires exact domain and one @", () => {
     "a @hafs.hs.kr",
   ])
     assert.equal(isSchoolEmail(email), false);
+});
+test("search splits keywords, dedupes and strips filter syntax", () => {
+  assert.deepEqual(searchKeywords("  파란  노트 Notebook notebook "), [
+    "파란",
+    "노트",
+    "notebook",
+  ]);
+  assert.deepEqual(searchKeywords('a,b) c.d "e"'), ["a", "b", "c", "d", "e"]);
+  assert.deepEqual(searchKeywords("100%"), ["100"]);
+  assert.deepEqual(searchKeywords("a b c d e f g"), ["a", "b", "c", "d", "e"]);
+  assert.deepEqual(searchKeywords(null), []);
+  assert.deepEqual(searchKeywords(" ,() "), []);
 });
 test("post rules enforce prices, images and lost dates", () => {
   const base = {

@@ -1,5 +1,6 @@
 import { member } from "@/lib/auth";
 import { failure, json } from "@/lib/http";
+import { searchKeywords } from "@/lib/domain";
 import { z } from "zod";
 export async function GET(request: Request) {
   try {
@@ -33,12 +34,12 @@ export async function GET(request: Request) {
     if (type === "market")
       query = query.in("kind", ["sale", "giveaway", "barter"]);
     if (type === "lost") query = query.in("kind", ["lost", "found"]);
-    const search = params.get("q")?.trim().slice(0, 60);
-    if (search) {
-      const literal = search.replace(/[\\%_,().]/g, " ").trim();
-      if (literal)
-        query = query.or(`title.ilike.%${literal}%,body.ilike.%${literal}%`);
-    }
+    for (const word of searchKeywords(params.get("q")))
+      query = query.or(
+        ["title", "body", "wanted", "custody"]
+          .map((column) => `${column}.ilike.%${word}%`)
+          .join(","),
+      );
     const category = params.get("category");
     if (category) query = query.eq("category", category);
     const kind = params.get("kind");
