@@ -115,6 +115,14 @@ export function relativeTime(value: string) {
         ? `${Math.floor(minutes / 60)}시간 전`
         : `${Math.floor(minutes / 1440)}일 전`;
 }
+export function searchKeywords(input: string | null | undefined) {
+  const words = (input ?? "")
+    .slice(0, 60)
+    .replace(/[\\%_,().*"]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+  return [...new Set(words.map((w) => w.toLowerCase()))].slice(0, 5);
+}
 export function isSchoolEmail(email: string | undefined) {
   return !!email && /^[^\s@]+@hafs\.hs\.kr$/i.test(email);
 }
