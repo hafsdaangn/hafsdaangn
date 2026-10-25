@@ -183,12 +183,16 @@ test("Postgres schema enforces membership, ownership, media and private chat", a
     body: "정상적인 상품 설명",
     price: 1000,
     category: "기타",
-    place: "직접 정하기",
+    place: "도서관 앞 벤치",
     occurred_on: null,
     custody: "",
     image_ids: [image],
   };
-  const post = await mutate(seller, "post.save", payload);
+  const post = (await mutate(seller, "post.save", payload)) as {
+    place: string;
+    updated_at: string;
+  };
+  assert.equal(post.place, "도서관 앞 벤치");
   await assert.rejects(
     mutate(buyer, "post.save", { ...payload, title: "타인 수정" }),
     /수정할 수/,

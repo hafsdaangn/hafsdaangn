@@ -242,22 +242,32 @@ export function PostForm({
               }
             />
           </div>
-          <div className="form-columns">
+          {market ? (
             <div className="field">
-              <label htmlFor="place">
-                {market ? "희망 나눔 장소" : "분실·발견 장소"}
-              </label>
-              <select
+              <label htmlFor="place">희망 장소</label>
+              <input
                 id="place"
                 name="place"
-                defaultValue={post?.place ?? places[0]}
-              >
-                {places.map((p) => (
-                  <option key={p}>{p}</option>
-                ))}
-              </select>
+                maxLength={60}
+                required
+                defaultValue={post?.place ?? ""}
+                placeholder="희망하는 나눔 장소를 입력해 주세요 (예: 도서관 앞, 기숙사 로비)"
+              />
             </div>
-            {!market && (
+          ) : (
+            <div className="form-columns">
+              <div className="field">
+                <label htmlFor="place">분실·발견 장소</label>
+                <select
+                  id="place"
+                  name="place"
+                  defaultValue={post?.place ?? places[0]}
+                >
+                  {places.map((p) => (
+                    <option key={p}>{p}</option>
+                  ))}
+                </select>
+              </div>
               <div className="field">
                 <label htmlFor="occurred">분실·발견 날짜</label>
                 <input
@@ -271,8 +281,8 @@ export function PostForm({
                   })}
                 />
               </div>
-            )}
-          </div>
+            </div>
+          )}
           {kind === "found" && (
             <div className="field">
               <label htmlFor="custody">보관 방법</label>

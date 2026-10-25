@@ -54,6 +54,24 @@ test("post rules enforce prices, images and lost dates", () => {
     false,
   );
   assert.equal(
+    postSchema.safeParse({
+      ...base,
+      kind: "giveaway",
+      price: 0,
+      place: "본관 3층 홈베이스 앞",
+    }).success,
+    true,
+  );
+  assert.equal(
+    postSchema.safeParse({
+      ...base,
+      kind: "giveaway",
+      price: 0,
+      place: "",
+    }).success,
+    false,
+  );
+  assert.equal(
     postSchema.safeParse({ ...base, kind: "lost", price: 0, image_ids: [] })
       .success,
     false,

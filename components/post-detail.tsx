@@ -173,7 +173,7 @@ export function PostDetail({
             <div className="location-info">
               <MapPin size={19} />
               <div>
-                <span>{market ? "희망 나눔 장소" : "분실·발견 장소"}</span>
+                <span>{market ? "희망 장소" : "분실·발견 장소"}</span>
                 <strong>{post.place}</strong>
               </div>
             </div>

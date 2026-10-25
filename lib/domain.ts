@@ -134,7 +134,11 @@ export const postSchema = z
     body: z.string().trim().min(5, "설명을 5자 이상 입력해 주세요.").max(3000),
     price: z.number().int().min(0).max(100_000_000),
     category: z.enum(categories),
-    place: z.enum(places),
+    place: z
+      .string()
+      .trim()
+      .min(1, "희망 장소를 입력해 주세요.")
+      .max(60, "장소는 60자까지 입력할 수 있어요."),
     occurred_on: z.iso.date().nullable(),
     custody: z.string().trim().max(100),
     wanted: z.string().trim().max(60).default(""),
@@ -164,6 +168,15 @@ export const postSchema = z
         code: "custom",
         message: "분실 또는 발견 날짜를 입력해 주세요.",
         path: ["occurred_on"],
+      });
+    if (
+      !isMarket(post.kind) &&
+      !places.includes(post.place as (typeof places)[number])
+    )
+      ctx.addIssue({
+        code: "custom",
+        message: "올바른 분실 장소를 선택해 주세요.",
+        path: ["place"],
       });
     if (
       post.occurred_on &&
