@@ -8,6 +8,7 @@ import {
   MapPin,
   Search,
   Plus,
+  Tag,
 } from "lucide-react";
 import { type ReactNode } from "react";
 import {
@@ -26,7 +27,7 @@ export function Brand() {
         <span />
         <span />
       </span>
-      합스당근<span className="brand-school">HAFS</span>
+      합스당근
     </span>
   );
 }
@@ -37,9 +38,10 @@ export function Avatar({
   name?: string;
   large?: boolean;
 }) {
+  const initial = name.match(/\p{L}/u)?.[0];
   return (
     <span className={`avatar ${large ? "large" : ""}`} aria-hidden="true">
-      {name ? name.slice(0, 1) : <UserRound size={20} />}
+      {initial ?? <UserRound size={20} />}
     </span>
   );
 }
@@ -107,9 +109,12 @@ export function PostPhoto({ post, index = 0 }: { post: Post; index?: number }) {
   return src ? (
     <img src={src} alt={post.title} loading="lazy" />
   ) : (
-    <span className="photo-placeholder">
-      <PackageOpen size={32} />
-      <span>등록된 사진 없음</span>
+    <span
+      className="post-photo-placeholder"
+      role="img"
+      aria-label="등록된 사진 없음"
+    >
+      <Tag aria-hidden="true" />
     </span>
   );
 }
@@ -124,6 +129,10 @@ export function PostCard({ post }: { post: Post }) {
         <PostPhoto post={post} />
       </div>
       <div className="post-copy">
+        <h2>
+          {post.status !== "active" && <StatusBadge post={post} />}
+          <span>{post.title}</span>
+        </h2>
         {!isMarket(post.kind) && (
           <span
             className={`kind-tag ${post.kind === "found" ? "green" : "orange"}`}
@@ -131,29 +140,23 @@ export function PostCard({ post }: { post: Post }) {
             {priceLabel(post)}
           </span>
         )}
-        <h2>
-          {post.status !== "active" && <StatusBadge post={post} />}
-          <span>{post.title}</span>
-        </h2>
         <p>
           {isMarket(post.kind) ? (
             post.category
-          ) : (
+          ) : post.place ? (
             <>
               <MapPin size={13} />
               {post.place}
             </>
-          )}
-          <span>·</span>
+          ) : null}
+          {(isMarket(post.kind) || post.place) && <span>·</span>}
           {relativeTime(post.created_at)}
         </p>
         {post.kind === "barter" ? (
           <small>받고 싶은 물건 · {post.wanted}</small>
-        ) : isMarket(post.kind) ? (
-          <strong className={post.kind === "giveaway" ? "text-green" : ""}>
-            {priceLabel(post)}
-          </strong>
-        ) : (
+        ) : post.kind === "sale" ? (
+          <strong>{priceLabel(post)}</strong>
+        ) : post.kind === "giveaway" ? null : (
           <small>{post.kind === "found" ? post.custody : "찾는 중"}</small>
         )}
       </div>

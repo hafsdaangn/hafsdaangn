@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Home, Search, MessageCircle, UserRound } from "lucide-react";
+import { Home, PackageSearch, MessageCircle, UserRound } from "lucide-react";
 import { unreadCount } from "@/lib/domain";
 import { useApp } from "./provider";
 import { Brand, ErrorNotice, Spinner } from "./ui";
@@ -36,7 +36,7 @@ export function Workspace() {
     {
       path: "/lost",
       label: "분실물",
-      icon: Search,
+      icon: PackageSearch,
       active: section === "lost",
     },
     {

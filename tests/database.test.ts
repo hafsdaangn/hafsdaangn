@@ -193,6 +193,66 @@ test("Postgres schema enforces membership, ownership, media and private chat", a
     updated_at: string;
   };
   assert.equal(post.place, "도서관 앞 벤치");
+  for (const [index, kind] of ["lost", "found"].entries()) {
+    const minimal = {
+      ...payload,
+      id: testId(100 + index),
+      kind,
+      body: "",
+      place: "",
+      price: 0,
+      image_ids: [],
+    };
+    const saved = await mutate(seller, "post.save", minimal);
+    assert.equal(saved.body, "");
+    assert.equal(saved.place, "");
+    assert.equal(saved.occurred_on, null);
+    assert.equal(saved.custody, "");
+    const edited = await mutate(seller, "post.save", {
+      ...minimal,
+      body: "펜",
+      place: "본관 3층 홈베이스 앞",
+    });
+    assert.equal(edited.place, "본관 3층 홈베이스 앞");
+    await assert.rejects(
+      mutate(seller, "post.save", { ...minimal, title: " " }),
+      /check constraint/,
+    );
+    await assert.rejects(
+      db.query("update public.posts set status='reserved' where id=$1", [
+        minimal.id,
+      ]),
+      /check constraint/,
+    );
+    await mutate(seller, "post.delete", { id: minimal.id });
+  }
+  await assert.rejects(
+    mutate(seller, "post.save", { ...payload, body: "" }),
+    /check constraint/,
+  );
+  await db.query(
+    "insert into public.media(id,owner_id,path) values($1,$2,'giveaway.webp')",
+    [testId(103), seller],
+  );
+  const giveaway = {
+    ...payload,
+    id: testId(102),
+    image_ids: [testId(103)],
+    kind: "giveaway",
+    price: 0,
+    place: "",
+  };
+  assert.equal((await mutate(seller, "post.save", giveaway)).place, "");
+  assert.equal(
+    (
+      await mutate(seller, "post.save", {
+        ...giveaway,
+        title: "장소 없는 나눔 수정",
+      })
+    ).place,
+    "",
+  );
+  await mutate(seller, "post.delete", { id: giveaway.id });
   await assert.rejects(
     mutate(buyer, "post.save", { ...payload, title: "타인 수정" }),
     /수정할 수/,

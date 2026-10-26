@@ -162,7 +162,6 @@ export function Chats({ id }: { id?: string }) {
     <section className={`chat-layout ${id ? "has-room" : ""}`}>
       <aside className="chat-sidebar">
         <PageHeading title="채팅" />
-        <p className="section-subtitle">물건도, 마음도 가까이.</p>
         <div className="room-list">
           {rooms.length ? (
             rooms.map((c) => {
@@ -216,8 +215,6 @@ export function Chats({ id }: { id?: string }) {
         {!id ? (
           <Empty
             title="대화를 선택해 주세요"
-            body="학교 친구와 나눔을 이야기해 보세요."
-            action={<MessageCircle size={28} />}
           />
         ) : !room ? (
           <Empty title="대화를 찾을 수 없어요" />

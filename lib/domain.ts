@@ -131,14 +131,14 @@ export const postSchema = z
     id: z.uuid().optional(),
     kind: z.enum(["sale", "giveaway", "barter", "lost", "found"]),
     title: z.string().trim().min(2, "제목은 2자 이상 입력해 주세요.").max(60),
-    body: z.string().trim().min(5, "설명을 5자 이상 입력해 주세요.").max(3000),
+    body: z.string().trim().max(3000),
     price: z.number().int().min(0).max(100_000_000),
     category: z.enum(categories),
     place: z
       .string()
       .trim()
-      .min(1, "희망 장소를 입력해 주세요.")
-      .max(60, "장소는 60자까지 입력할 수 있어요."),
+      .max(60, "장소는 60자까지 입력할 수 있어요.")
+      .default(""),
     occurred_on: z.iso.date().nullable(),
     custody: z.string().trim().max(100),
     wanted: z.string().trim().max(60).default(""),
@@ -163,20 +163,11 @@ export const postSchema = z
         message: "사진을 한 장 이상 올려 주세요.",
         path: ["image_ids"],
       });
-    if (!isMarket(post.kind) && !post.occurred_on)
+    if (isMarket(post.kind) && post.body.length < 5)
       ctx.addIssue({
         code: "custom",
-        message: "분실 또는 발견 날짜를 입력해 주세요.",
-        path: ["occurred_on"],
-      });
-    if (
-      !isMarket(post.kind) &&
-      !places.includes(post.place as (typeof places)[number])
-    )
-      ctx.addIssue({
-        code: "custom",
-        message: "올바른 분실 장소를 선택해 주세요.",
-        path: ["place"],
+        message: "설명을 5자 이상 입력해 주세요.",
+        path: ["body"],
       });
     if (
       post.occurred_on &&
@@ -199,12 +190,6 @@ export const postSchema = z
         code: "custom",
         message: "물물교환 이외의 글에는 받고 싶은 물건을 입력할 수 없어요.",
         path: ["wanted"],
-      });
-    if (post.kind === "found" && !post.custody)
-      ctx.addIssue({
-        code: "custom",
-        message: "보관 방법을 입력해 주세요.",
-        path: ["custody"],
       });
   });
 export type PostInput = z.infer<typeof postSchema>;

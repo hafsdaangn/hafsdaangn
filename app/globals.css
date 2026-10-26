@@ -419,56 +419,76 @@ input[type="checkbox"] {
   color: var(--color-muted);
   white-space: nowrap;
 }
+/* Hallmark · pre-emit critique: P4 H5 E4 S4 R5 V4 */
 .post-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  column-gap: 40px;
+  margin-top: 24px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 32px 24px;
 }
 .post-card {
   min-width: 0;
   display: flex;
-  gap: 20px;
-  padding: 24px 0;
-  border-bottom: 1px solid var(--color-line);
+  flex-direction: column;
+  gap: 12px;
 }
 .post-card:hover h2 > span:last-child {
   text-decoration: underline;
   text-underline-offset: 4px;
 }
 .post-thumb {
-  flex: 0 0 148px;
-  height: 148px;
-  border-radius: var(--radius-md);
+  width: 100%;
+  aspect-ratio: 1;
+  flex: none;
+  border-radius: var(--radius-lg);
   overflow: hidden;
   background: var(--color-subtle);
 }
 .post-thumb img,
-.post-thumb svg,
 .mini-thumb img,
 .mini-thumb svg {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
+.post-photo-placeholder {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  background: var(--color-placeholder-background);
+  color: var(--color-placeholder-icon);
+  border: 1px solid var(--color-placeholder-border);
+  border-radius: inherit;
+}
+.post-photo-placeholder svg {
+  width: 40%;
+  height: 40%;
+  fill: currentColor;
+  stroke: var(--color-placeholder-background);
+  stroke-width: 1.5;
+}
 .post-copy {
+  flex: 1;
   min-width: 0;
-  padding-top: 6px;
+  padding-top: 0;
 }
 .post-copy h2 {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   align-items: center;
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 600;
   line-height: 1.5;
   margin-bottom: 6px;
 }
 .post-copy h2 > span:last-child {
   overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  display: block;
+  min-width: 0;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 .post-copy p {
   display: flex;
@@ -602,18 +622,6 @@ input[type="checkbox"] {
 .load-more {
   display: flex;
   margin: 28px auto;
-}
-.photo-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  font-size: 11px;
-  color: var(--color-muted);
-  background: var(--color-subtle);
 }
 .detail-page {
   max-width: 1060px;
@@ -780,13 +788,6 @@ input[type="checkbox"] {
   color: var(--color-ink);
   font-size: 14px;
   margin-top: 2px;
-}
-.custody-note {
-  padding: 12px 16px;
-  background: var(--color-green-soft);
-  color: var(--color-green);
-  border-radius: var(--radius-sm);
-  font-size: 14px;
 }
 .detail-action {
   display: flex;
@@ -1000,7 +1001,7 @@ input[type="checkbox"] {
   overflow-y: auto;
 }
 .chat-sidebar > .page-heading {
-  padding: 20px 24px 0;
+  padding: 20px 24px;
 }
 .chat-sidebar > .section-subtitle {
   padding: 0 24px 20px;
@@ -1276,12 +1277,6 @@ input[type="checkbox"] {
   display: flex;
   flex-direction: column;
 }
-.landing-header {
-  height: 100px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
 .landing-main {
   flex: 1;
   display: grid;
@@ -1293,25 +1288,17 @@ input[type="checkbox"] {
   width: 100%;
   max-width: 520px;
   margin-inline: auto;
+  text-align: center;
 }
 .landing-copy h1 {
-  font-size: clamp(36px, 4.1vw, 56px);
-  line-height: 1.28;
-  letter-spacing: -2px;
-  font-weight: 800;
-  margin: 22px 0;
+  margin: 0;
 }
-.landing-copy em {
-  font-style: normal;
-  color: var(--color-accent);
-}
-.landing-copy > p {
-  color: var(--color-muted);
-  line-height: 1.85;
-  font-size: 16px;
+.landing-copy .brand {
+  zoom: 2;
 }
 .login-actions {
   margin-top: 36px;
+  margin-inline: auto;
   max-width: 360px;
 }
 .google-button {
@@ -1338,9 +1325,8 @@ input[type="checkbox"] {
   .header-note {
     display: none;
   }
-  .post-thumb {
-    flex-basis: 120px;
-    height: 120px;
+  .post-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
   .detail-grid {
     gap: 28px;
@@ -1419,21 +1405,21 @@ input[type="checkbox"] {
   }
   .post-grid {
     grid-template-columns: minmax(0, 1fr);
-    gap: 0;
+    gap: 24px 16px;
   }
   .post-card {
-    padding: 18px 0;
-    gap: 15px;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 14px;
   }
   .post-thumb {
-    flex-basis: 112px;
-    height: 112px;
+    width: 112px;
   }
   .post-copy {
     padding-top: 1px;
   }
   .post-copy h2 {
-    font-size: 15px;
+    font-size: 17px;
     margin-bottom: 5px;
     line-height: 1.45;
   }
@@ -1667,22 +1653,13 @@ input[type="checkbox"] {
   .landing {
     padding: 0 24px;
   }
-  .landing-header {
-    height: 84px;
-  }
   .landing-main {
     display: flex;
     flex-direction: column;
+    justify-content: center;
     align-items: stretch;
     padding: 26px 0 44px;
     gap: 40px;
-  }
-  .landing-copy h1 {
-    font-size: 39px;
-    letter-spacing: -1.5px;
-  }
-  .landing-copy > p {
-    font-size: 14px;
   }
   .login-actions {
     max-width: none;
@@ -1706,15 +1683,14 @@ input[type="checkbox"] {
     padding-left: 16px;
     padding-right: 16px;
   }
-  .post-thumb {
-    flex-basis: 96px;
-    height: 104px;
-  }
   .post-card {
     gap: 12px;
   }
+  .post-thumb {
+    width: 96px;
+  }
   .post-copy h2 {
-    font-size: 14px;
+    font-size: 16px;
   }
   .filter-controls {
     gap: 4px;
@@ -1730,9 +1706,6 @@ input[type="checkbox"] {
   .form-columns {
     grid-template-columns: minmax(0, 1fr);
     gap: 0;
-  }
-  .landing-copy h1 {
-    font-size: 35px;
   }
   .profile-header {
     flex-wrap: wrap;

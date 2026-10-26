@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
 import { useSearchParams, usePathname } from "next/navigation";
-import { SlidersHorizontal, ArrowDown, X } from "lucide-react";
-import { categories, places, type Post } from "@/lib/domain";
+import { ArrowDown, X } from "lucide-react";
+import { categories, type Post } from "@/lib/domain";
 import { useApp } from "./provider";
 import {
   Empty,
@@ -20,7 +20,6 @@ export function Feed({ lost = false }: { lost?: boolean }) {
   const q = params.get("q") ?? "",
     category = params.get("category") ?? "전체",
     kind = params.get("kind") ?? "all",
-    place = params.get("place") ?? "전체",
     available = params.get("available") !== "false";
   const [search, setSearch] = useState(q),
     [busy, setBusy] = useState(true),
@@ -68,8 +67,7 @@ export function Feed({ lost = false }: { lost?: boolean }) {
     available: String(available),
   });
   if (category !== "전체") query.set("category", category);
-  if (kind !== "all") query.set("kind", kind);
-  if (place !== "전체") query.set("place", place);
+  if (lost && kind !== "all") query.set("kind", kind);
   const queryString = query.toString();
   useEffect(() => {
     const controller = new AbortController(),
@@ -130,11 +128,6 @@ export function Feed({ lost = false }: { lost?: boolean }) {
       <div className="feed-intro">
         <div>
           <PageHeading title={lost ? "분실물" : "우리 학교 나눔"} />
-          <p>
-            {lost
-              ? "잃어버린 물건, 여기서 찾아요."
-              : "필요한 물건은 가까이, 쓰던 물건은 다음 친구에게."}
-          </p>
         </div>
       </div>
       <SearchInput
@@ -163,27 +156,6 @@ export function Feed({ lost = false }: { lost?: boolean }) {
       </div>
       <div className="filter-row">
         <div className="filter-controls">
-          <SlidersHorizontal size={16} />
-          {lost ? (
-            <select
-              aria-label="장소 필터"
-              value={place}
-              onChange={(e) => filter("place", e.target.value)}
-            >
-              <option value="전체">장소 전체</option>
-              {places.map((p) => (
-                <option key={p}>{p}</option>
-              ))}
-            </select>
-          ) : (
-            <select
-              aria-label="글 유형 필터"
-              value={kind === "all" ? "giveaway" : kind}
-              onChange={(e) => filter("kind", e.target.value)}
-            >
-              <option value="giveaway">나눔</option>
-            </select>
-          )}
           <label className="checkbox-label">
             <input
               type="checkbox"
@@ -216,7 +188,7 @@ export function Feed({ lost = false }: { lost?: boolean }) {
           body={
             q
               ? "다른 검색어나 필터로 찾아보세요."
-              : "첫 번째 글로 학교 친구들과 연결해 보세요."
+              : ""
           }
           action={
             q && (

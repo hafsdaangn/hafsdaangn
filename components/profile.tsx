@@ -111,7 +111,7 @@ export function ProfilePage() {
       ) : (
         <Empty
           title="아직 게시글이 없어요"
-          body="사용하지 않는 물건을 학교 친구와 나눠보세요."
+          body="사용하지 않는 물건을 나눠보세요."
         />
       )}
       {more && (

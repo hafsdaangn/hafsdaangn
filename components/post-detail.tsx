@@ -4,11 +4,11 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   MapPin,
+  PackageOpen,
   Pencil,
   Trash2,
   ChevronLeft,
   ChevronRight,
-  CalendarDays,
 } from "lucide-react";
 import {
   type Conversation,
@@ -162,34 +162,27 @@ export function PostDetail({
               {market ? post.category : priceLabel(post)} ·{" "}
               {relativeTime(post.created_at)}
             </p>
-            {market && (
-              <strong
-                className={`detail-price ${post.kind === "giveaway" ? "text-green" : ""}`}
-              >
-                {priceLabel(post)}
-              </strong>
+            {market && post.kind !== "giveaway" && (
+              <strong className="detail-price">{priceLabel(post)}</strong>
             )}
             <p className="description">{post.body}</p>
-            <div className="location-info">
-              <MapPin size={19} />
-              <div>
-                <span>{market ? "희망 장소" : "분실·발견 장소"}</span>
-                <strong>{post.place}</strong>
-              </div>
-            </div>
-            {!market && (
-              <>
-                <div className="location-info">
-                  <CalendarDays size={19} />
-                  <div>
-                    <span>분실·발견 날짜</span>
-                    <strong>{post.occurred_on}</strong>
-                  </div>
+            {!market && post.place && (
+              <div className="location-info">
+                <MapPin size={19} />
+                <div>
+                  <span>분실·발견 장소</span>
+                  <strong>{post.place}</strong>
                 </div>
-                {post.kind === "found" && (
-                  <div className="custody-note">{post.custody}</div>
-                )}
-              </>
+              </div>
+            )}
+            {post.kind === "found" && post.custody && (
+              <div className="location-info">
+                <PackageOpen size={19} />
+                <div>
+                  <span>보관 방법</span>
+                  <strong>{post.custody}</strong>
+                </div>
+              </div>
             )}
           </div>
           <ErrorNotice message={error} />
@@ -208,9 +201,7 @@ export function PostDetail({
                   })
                 }
               >
-                <option value="active">
-                  {market ? "나눔 중" : "찾는 중"}
-                </option>
+                <option value="active">{market ? "나눔 중" : "찾는 중"}</option>
                 {market && <option value="reserved">예약 중</option>}
                 <option value="completed">
                   {market ? "나눔 완료" : "해결 완료"}
@@ -218,7 +209,7 @@ export function PostDetail({
               </select>
               <div className="owner-buttons">
                 <Link
-                  className="button secondary"
+                  className="button ghost"
                   href={`${base}/posts/${id}/edit`}
                 >
                   <Pencil size={15} />

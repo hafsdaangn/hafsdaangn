@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { Camera, X, ArrowLeft, ArrowRight } from "lucide-react";
 import {
   categories,
-  places,
   type Kind,
   type Post,
   postSchema,
@@ -60,8 +59,8 @@ export function PostForm({
       body: form.get("body"),
       price: 0,
       category: form.get("category") ?? "기타",
-      place: form.get("place"),
-      occurred_on: isMarket(kind) ? null : form.get("occurred_on"),
+      place: form.get("place") ?? "",
+      occurred_on: null,
       custody: form.get("custody") ?? "",
       wanted: "",
       image_ids: photos,
@@ -226,13 +225,15 @@ export function PostForm({
             </div>
           )}
           <div className="field">
-            <label htmlFor="body">설명</label>
+            <label htmlFor="body">
+              설명 {!market && <span className="field-hint">선택</span>}
+            </label>
             <textarea
               id="body"
               name="body"
               rows={6}
-              required
-              minLength={5}
+              required={market}
+              minLength={market ? 5 : undefined}
               maxLength={3000}
               defaultValue={post?.body}
               placeholder={
@@ -242,54 +243,28 @@ export function PostForm({
               }
             />
           </div>
-          {market ? (
+          {!market && (
             <div className="field">
-              <label htmlFor="place">희망 장소</label>
+              <label htmlFor="place">
+                분실·발견 장소 <span className="field-hint">선택</span>
+              </label>
               <input
                 id="place"
                 name="place"
                 maxLength={60}
-                required
                 defaultValue={post?.place ?? ""}
-                placeholder="희망하는 나눔 장소를 입력해 주세요 (예: 도서관 앞, 기숙사 로비)"
+                placeholder="분실하거나 발견한 장소를 입력해 주세요."
               />
-            </div>
-          ) : (
-            <div className="form-columns">
-              <div className="field">
-                <label htmlFor="place">분실·발견 장소</label>
-                <select
-                  id="place"
-                  name="place"
-                  defaultValue={post?.place ?? places[0]}
-                >
-                  {places.map((p) => (
-                    <option key={p}>{p}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="field">
-                <label htmlFor="occurred">분실·발견 날짜</label>
-                <input
-                  id="occurred"
-                  name="occurred_on"
-                  type="date"
-                  required
-                  defaultValue={post?.occurred_on ?? ""}
-                  max={new Date().toLocaleDateString("en-CA", {
-                    timeZone: "Asia/Seoul",
-                  })}
-                />
-              </div>
             </div>
           )}
           {kind === "found" && (
             <div className="field">
-              <label htmlFor="custody">보관 방법</label>
+              <label htmlFor="custody">
+                보관 방법 <span className="field-hint">선택</span>
+              </label>
               <input
                 id="custody"
                 name="custody"
-                required
                 maxLength={100}
                 defaultValue={post?.custody || "직접 보관 중"}
                 placeholder="직접 보관 중 또는 맡긴 장소"

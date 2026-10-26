@@ -27,7 +27,7 @@ test("search splits keywords, dedupes and strips filter syntax", () => {
   assert.deepEqual(searchKeywords(null), []);
   assert.deepEqual(searchKeywords(" ,() "), []);
 });
-test("post rules enforce prices, images and lost dates", () => {
+test("post rules enforce market requirements and allow optional lost/found fields", () => {
   const base = {
     kind: "sale",
     title: "판매 테스트",
@@ -69,12 +69,17 @@ test("post rules enforce prices, images and lost dates", () => {
       price: 0,
       place: "",
     }).success,
-    false,
+    true,
+  );
+  assert.equal(
+    postSchema.parse({ ...base, kind: "giveaway", price: 0, place: undefined })
+      .place,
+    "",
   );
   assert.equal(
     postSchema.safeParse({ ...base, kind: "lost", price: 0, image_ids: [] })
       .success,
-    false,
+    true,
   );
   assert.equal(
     postSchema.safeParse({
@@ -83,8 +88,40 @@ test("post rules enforce prices, images and lost dates", () => {
       price: 0,
       occurred_on: "2020-01-01",
     }).success,
-    false,
+    true,
   );
+  for (const kind of ["lost", "found"]) {
+    const minimal = {
+      ...base,
+      kind,
+      price: 0,
+      body: "",
+      place: "",
+      image_ids: [],
+    };
+    assert.equal(postSchema.safeParse(minimal).success, true);
+    assert.equal(
+      postSchema.safeParse({ ...minimal, title: " " }).success,
+      false,
+    );
+    assert.equal(
+      postSchema.safeParse({
+        ...minimal,
+        body: "펜",
+        place: "본관 3층 홈베이스 앞",
+      }).success,
+      true,
+    );
+    assert.equal(
+      postSchema.safeParse({ ...minimal, place: "가".repeat(61) }).success,
+      false,
+    );
+    assert.equal(
+      postSchema.safeParse({ ...minimal, body: "가".repeat(3001) }).success,
+      false,
+    );
+  }
+  assert.equal(postSchema.safeParse({ ...base, body: "" }).success, false);
 });
 
 test("environment controls email restriction", async () => {

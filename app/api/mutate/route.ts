@@ -33,12 +33,18 @@ export async function POST(request: Request) {
       op,
       payload: parsed.data,
     });
-    if (error)
+    if (error) {
+      console.error("Mutation failed", {
+        op,
+        code: error.code,
+        message: error.message,
+      });
       throw new Error(
         error.code === "P0001"
           ? error.message
           : "요청한 내용을 저장하지 못했어요. 입력을 확인하고 다시 시도해 주세요.",
       );
+    }
     if (op === "message.send")
       after(async () => {
         try {
