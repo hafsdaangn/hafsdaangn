@@ -1,11 +1,11 @@
 "use client";
 import Link from "next/link";
+import Image from "next/image";
 import {
   ArrowLeft,
   PackageOpen,
   UserRound,
   LoaderCircle,
-  MapPin,
   Search,
   Plus,
   Tag,
@@ -19,15 +19,17 @@ import {
   isMarket,
 } from "@/lib/domain";
 import { useApp } from "./provider";
-export function Brand() {
+export function Brand({ full = false }: { full?: boolean }) {
   return (
-    <span className="brand">
-      <span className="brand-mark" aria-hidden="true">
-        <span />
-        <span />
-        <span />
-      </span>
-      합스당근
+    <span className={`brand${full ? " brand-full" : ""}`}>
+      <Image
+        src={`/brand/${full ? "logo" : "symbol"}.svg`}
+        alt="합스당근"
+        width={full ? 1042 : 562}
+        height={607}
+        priority
+        className="brand-logo"
+      />
     </span>
   );
 }
@@ -135,20 +137,13 @@ export function PostCard({ post }: { post: Post }) {
         </h2>
         {!isMarket(post.kind) && (
           <span
-            className={`kind-tag ${post.kind === "found" ? "green" : "orange"}`}
+            className={`kind-tag ${post.kind === "found" ? "blue" : "orange"}`}
           >
             {priceLabel(post)}
           </span>
         )}
-        <p>
-          {isMarket(post.kind) ? (
-            post.category
-          ) : post.place ? (
-            <>
-              <MapPin size={13} />
-              {post.place}
-            </>
-          ) : null}
+        <p className={!isMarket(post.kind) ? "post-location" : undefined}>
+          {isMarket(post.kind) ? post.category : post.place || null}
           {(isMarket(post.kind) || post.place) && <span>·</span>}
           {relativeTime(post.created_at)}
         </p>
@@ -156,9 +151,9 @@ export function PostCard({ post }: { post: Post }) {
           <small>받고 싶은 물건 · {post.wanted}</small>
         ) : post.kind === "sale" ? (
           <strong>{priceLabel(post)}</strong>
-        ) : post.kind === "giveaway" ? null : (
-          <small>{post.kind === "found" ? post.custody : "찾는 중"}</small>
-        )}
+        ) : post.kind === "lost" ? (
+          <small>찾는 중</small>
+        ) : null}
       </div>
     </Link>
   );

@@ -3,8 +3,198 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import { pushEndpoint, subscriptionSchema } from "../lib/push-schema";
-import { chatPushContent } from "../lib/push-content";
-import type { Message } from "../lib/domain";
+import { chatPushContent, postPushContent } from "../lib/push-content";
+import {
+  defaultPostNotifications,
+  matchesPostNotification,
+  postNotificationSchema,
+} from "../lib/post-notifications";
+import type { Message, Post } from "../lib/domain";
+import { initializePushDefaults } from "../lib/push-defaults";
+
+test("first push registration enables chat and all new posts without overwriting saved choices", async () => {
+  const tables = new Map<string, Map<string, Record<string, unknown>>>();
+  let failedTable = "";
+  const client = {
+    from(table: string) {
+      return {
+        async upsert(
+          input: Record<string, unknown> | Record<string, unknown>[],
+          options: { onConflict: string; ignoreDuplicates: boolean },
+        ) {
+          assert.equal(options.ignoreDuplicates, true);
+          if (table === failedTable)
+            return { error: { message: "unavailable" } };
+          const rows =
+            tables.get(table) ?? new Map<string, Record<string, unknown>>();
+          tables.set(table, rows);
+          for (const row of Array.isArray(input) ? input : [input]) {
+            const key = options.onConflict
+              .split(",")
+              .map((column) => row[column])
+              .join(":");
+            if (!rows.has(key)) rows.set(key, { ...row });
+          }
+          return { error: null };
+        },
+      };
+    },
+  } as unknown as Parameters<typeof initializePushDefaults>[0];
+  await initializePushDefaults(client, "member");
+  assert.equal(
+    tables.get("chat_notification_settings")!.get("member")!.enabled,
+    true,
+  );
+  const posts = tables.get("post_notification_settings")!;
+  assert.equal(posts.get("member:giveaway")!.mode, "all");
+  assert.equal(posts.get("member:lost")!.mode, "all");
+  tables.get("chat_notification_settings")!.get("member")!.enabled = false;
+  posts.get("member:giveaway")!.mode = "off";
+  posts.get("member:lost")!.mode = "keywords";
+  posts.get("member:lost")!.keywords = ["지갑"];
+  await initializePushDefaults(client, "member");
+  assert.equal(
+    tables.get("chat_notification_settings")!.get("member")!.enabled,
+    false,
+  );
+  assert.equal(posts.get("member:giveaway")!.mode, "off");
+  assert.equal(posts.get("member:lost")!.mode, "keywords");
+  assert.deepEqual(posts.get("member:lost")!.keywords, ["지갑"]);
+  failedTable = "post_notification_settings";
+  await assert.rejects(
+    initializePushDefaults(client, "new-member"),
+    /게시글 알림 기본 설정/,
+  );
+  failedTable = "";
+  await initializePushDefaults(client, "new-member");
+  assert.equal(posts.get("new-member:lost")!.mode, "all");
+});
+
+test("post subscriptions separate sections and match literal keywords in title or body", () => {
+  const post = {
+    kind: "giveaway",
+    title: "수학 교재 나눔",
+    body: "USB 케이블도 있어요.",
+  } as Post;
+  const setting = {
+    section: "giveaway",
+    mode: "keywords",
+    keywords: ["usb", "지갑"],
+  } as const;
+  const preference = { ...setting, keywords: [...setting.keywords] };
+  assert.equal(matchesPostNotification(post, preference), true);
+  assert.equal(
+    matchesPostNotification({ ...post, body: "없어요" }, preference),
+    false,
+  );
+  assert.equal(
+    matchesPostNotification(post, { ...preference, keywords: ["수학"] }),
+    true,
+  );
+  assert.equal(
+    matchesPostNotification(post, { ...preference, keywords: ["%"] }),
+    false,
+  );
+  assert.equal(
+    matchesPostNotification(post, {
+      ...preference,
+      section: "lost",
+      mode: "all",
+    }),
+    false,
+  );
+  for (const kind of ["lost", "found"] as const)
+    assert.equal(
+      matchesPostNotification(
+        { ...post, kind },
+        { section: "lost", mode: "all", keywords: [] },
+      ),
+      true,
+    );
+  for (const kind of ["sale", "barter"] as const)
+    assert.equal(
+      matchesPostNotification(
+        { ...post, kind },
+        { ...preference, mode: "all" },
+      ),
+      false,
+    );
+  assert.equal(
+    matchesPostNotification(post, {
+      ...preference,
+      mode: "all",
+      keywords: [],
+    }),
+    true,
+  );
+  assert.equal(
+    matchesPostNotification(post, { ...preference, keywords: ["수학"] }),
+    true,
+  );
+  for (const defaults of defaultPostNotifications())
+    assert.equal(
+      matchesPostNotification(post, defaults),
+      defaults.section === "giveaway",
+    );
+  assert.equal(
+    matchesPostNotification(post, {
+      ...preference,
+      mode: "off",
+      keywords: ["수학"],
+    }),
+    false,
+  );
+  assert.equal(
+    matchesPostNotification(post, {
+      ...preference,
+      mode: "keywords",
+      keywords: [],
+    }),
+    false,
+  );
+});
+
+test("keyword validation trims, deduplicates and limits saved subscriptions", () => {
+  const setting = {
+    section: "lost",
+    mode: "keywords",
+    keywords: [" USB ", "usb", "지갑"],
+  };
+  assert.deepEqual(postNotificationSchema.parse(setting).keywords, [
+    "usb",
+    "지갑",
+  ]);
+  for (const keywords of [
+    [" "],
+    ["a".repeat(31)],
+    Array.from({ length: 21 }, (_, i) => String(i)),
+  ])
+    assert.equal(
+      postNotificationSchema.safeParse({ ...setting, keywords }).success,
+      false,
+    );
+  assert.equal(
+    postNotificationSchema.safeParse({ ...setting, section: "sale" }).success,
+    false,
+  );
+  assert.equal(
+    postNotificationSchema.safeParse({ ...setting, mode: "invalid" }).success,
+    false,
+  );
+});
+
+test("new post push links to the post with bounded content", () => {
+  const content = postPushContent({
+    id: "post",
+    kind: "found",
+    title: "지갑을 주웠어요",
+    body: "🥕".repeat(2000),
+  } as Post);
+  assert.equal(content.url, "/app/posts/post");
+  assert.equal(content.tag, "post-post");
+  assert.equal(content.title, "새 분실물 글 · 지갑을 주웠어요");
+  assert.ok(Buffer.byteLength(JSON.stringify(content)) < 4000);
+});
 
 test("chat preview includes the sender, message and product within push payload limits", () => {
   const message: Message = {
@@ -107,14 +297,23 @@ test("service worker shows notifications and opens only same-origin chat links",
   });
   await Promise.all(pending);
   assert.deepEqual(opened, ["https://school.example/app/chats/room"]);
+  for (const url of [
+    "https://attacker.example/app/chats/room",
+    "/app/chats-unrelated",
+    "https://[invalid",
+  ])
+    handlers.notificationclick({
+      notification: { close() {}, data: { url } },
+      waitUntil,
+    });
+  assert.equal(opened.length, 1);
+  const postUrl = "/app/posts/00000000-0000-4000-8000-000000000001";
   handlers.notificationclick({
-    notification: {
-      close() {},
-      data: { url: "https://attacker.example/app/chats/room" },
-    },
+    notification: { close() {}, data: { url: postUrl } },
     waitUntil,
   });
-  assert.equal(opened.length, 1);
+  await Promise.all(pending);
+  assert.equal(opened.at(-1), `https://school.example${postUrl}`);
   handlers.push({
     data: {
       json() {
@@ -125,6 +324,82 @@ test("service worker shows notifications and opens only same-origin chat links",
   });
   await Promise.all(pending);
   assert.equal(notifications.length, 2);
+});
+
+test("notification clicks activate the app before navigating and recover from stale windows", async (t) => {
+  for (const scenario of [
+    "existing",
+    "focus-rejected",
+    "navigate-rejected",
+    "navigate-null",
+    "no-windows",
+    "match-rejected",
+    "open-null",
+  ]) {
+    await t.test(scenario, async () => {
+      const calls: string[] = [];
+      const target = "https://school.example/app/chats/room";
+      let click: (event: unknown) => void = () => {};
+      const client = {
+        url: "https://school.example/app",
+        focus: async () => {
+          calls.push("focus");
+          if (scenario === "focus-rejected") throw new Error("window closed");
+          return client;
+        },
+        navigate: async (url: string) => {
+          assert.equal(url, target);
+          calls.push("navigate");
+          if (scenario === "navigate-rejected") throw new Error("window gone");
+          // Return a different client to model a replaced document on Android.
+          return scenario === "navigate-null" ? null : { url: target };
+        },
+      };
+      const self = {
+        location: { origin: "https://school.example" },
+        addEventListener: (name: string, handler: typeof click) => {
+          if (name === "notificationclick") click = handler;
+        },
+        clients: {
+          matchAll: async () => {
+            if (scenario === "match-rejected") throw new Error("unavailable");
+            return ["no-windows", "open-null"].includes(scenario)
+              ? []
+              : [client];
+          },
+          openWindow: async (url: string) => {
+            assert.equal(url, target);
+            calls.push("open");
+            return scenario === "open-null"
+              ? null
+              : {
+                  focus: async () => {
+                    calls.push("opened-focus");
+                  },
+                };
+          },
+        },
+      };
+      runInNewContext(readFileSync("public/sw.js", "utf8"), { self, URL });
+      const pending: Promise<unknown>[] = [];
+      click({
+        notification: { close() {}, data: { url: "/app/chats/room" } },
+        waitUntil: (task: Promise<unknown>) => pending.push(task),
+      });
+      await Promise.all(pending);
+      const expected =
+        scenario === "existing"
+          ? ["focus", "navigate"]
+          : scenario === "focus-rejected"
+            ? ["focus", "open", "opened-focus"]
+            : scenario.startsWith("navigate-")
+              ? ["focus", "navigate", "open", "opened-focus"]
+              : scenario === "open-null"
+                ? ["open"]
+                : ["open", "opened-focus"];
+      assert.deepEqual(calls, expected);
+    });
+  }
 });
 
 test("successive chat pushes request another alert and worker updates activate immediately", async () => {

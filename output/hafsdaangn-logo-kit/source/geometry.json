@@ -1,0 +1,21 @@
+{
+  "symbol_bbox": [
+    312,
+    152,
+    802,
+    687
+  ],
+  "wordmark_bbox": [
+    847,
+    291,
+    1282,
+    653
+  ],
+  "gap": 45,
+  "palette": {
+    "blue": "#0054B8",
+    "orange": "#FF6800"
+  },
+  "method": "alpha > 210, connected component cleanup, Gaussian contour smoothing, quadratic outline tracing",
+  "reference": "exec-50278af4-8eb0-4b88-93b4-74a49cf48bc2.png"
+}

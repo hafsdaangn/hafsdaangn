@@ -1,0 +1,30 @@
+PASS vector outlines: social\hafsdaangn-avatar.svg
+PASS vector outlines: vector\hafsdaangn-horizontal-black.svg
+PASS vector outlines: vector\hafsdaangn-horizontal-blue.svg
+PASS vector outlines: vector\hafsdaangn-horizontal-color.svg
+PASS vector outlines: vector\hafsdaangn-horizontal-white.svg
+PASS vector outlines: vector\hafsdaangn-stacked-black.svg
+PASS vector outlines: vector\hafsdaangn-stacked-blue.svg
+PASS vector outlines: vector\hafsdaangn-stacked-color.svg
+PASS vector outlines: vector\hafsdaangn-stacked-white.svg
+PASS vector outlines: vector\hafsdaangn-symbol-black.svg
+PASS vector outlines: vector\hafsdaangn-symbol-blue.svg
+PASS vector outlines: vector\hafsdaangn-symbol-color.svg
+PASS vector outlines: vector\hafsdaangn-symbol-small.svg
+PASS vector outlines: vector\hafsdaangn-symbol-white.svg
+PASS vector outlines: vector\hafsdaangn-wordmark-black.svg
+PASS vector outlines: vector\hafsdaangn-wordmark-blue.svg
+PASS vector outlines: vector\hafsdaangn-wordmark-color.svg
+PASS vector outlines: vector\hafsdaangn-wordmark-white.svg
+PASS vector outlines: web\app-icon.svg
+PASS vector outlines: web\favicon.svg
+PASS vector outlines: web\maskable.svg
+PASS all transparent PNG widths and alpha channels
+PASS 5 single-page PDFs; print masters contain vector artwork without raster images
+PASS ICO contains 16 / 32 / 48px entries
+PASS manifest icon paths resolve
+NOTE traced outlines retain the approved raster character; minor contour smoothing and solid-color normalization applied.
+NOTE horizontal outline has 486 anchors: higher than a geometric mark, retained to preserve approved letterforms.
+NOTE minimum sizes in the guide are recommendations; tiny 16px icons lose fine internal detail. Use 24px or larger when possible.
+NOTE white variant uses the same master geometry; no separate optical thinning is claimed.
+NOTE RGB print files require print-shop ICC conversion and proofing. No Pantone match or font license identification claimed.

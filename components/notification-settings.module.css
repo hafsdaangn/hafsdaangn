@@ -1,0 +1,121 @@
+.stack {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.card {
+  margin: 0;
+  min-width: 0;
+  padding: 24px;
+}
+.card h2 {
+  margin: 0;
+  font-weight: 650;
+}
+.card p {
+  margin: 10px 0 0;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.feedback {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--color-subtle);
+}
+.feedback p {
+  margin: 0;
+  flex: 1 1 180px;
+}
+.feedback[role="alert"] {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+.feedback button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+.card .hint {
+  color: var(--color-muted);
+  font-size: 13px;
+}
+.modes {
+  display: grid;
+  gap: 10px;
+  border: 0;
+  padding: 0;
+  margin: 16px 0 0;
+}
+.modes legend {
+  margin-bottom: 8px;
+}
+.mode {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.mode:has(input:checked) {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+.mode input {
+  appearance: none;
+  -webkit-appearance: none;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  border: 1.5px solid var(--color-muted);
+  border-radius: 50%;
+  background: var(--color-paper);
+  box-shadow: none;
+  cursor: pointer;
+}
+.mode input:checked {
+  border-color: var(--color-accent);
+  background: radial-gradient(
+    circle,
+    var(--color-accent) 0 4px,
+    var(--color-paper) 4.5px
+  );
+}
+.mode input:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 3px;
+}
+@media (forced-colors: active) {
+  .mode input {
+    appearance: auto;
+  }
+}
+@media (max-width: 480px) {
+  .card {
+    padding: 20px;
+  }
+  .stack {
+    gap: 16px;
+  }
+}

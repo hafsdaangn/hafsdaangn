@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Home, PackageSearch, MessageCircle, UserRound } from "lucide-react";
-import { unreadCount } from "@/lib/domain";
+import { isMarket, unreadCount } from "@/lib/domain";
 import { useApp } from "./provider";
 import { Brand, ErrorNotice, Spinner } from "./ui";
 import { Feed } from "./feed";
@@ -11,7 +11,20 @@ import { PostForm } from "./post-form";
 import { Chats } from "./chats";
 import { ProfilePage } from "./profile";
 import { PushSettings } from "./push-settings";
+import { PushPermissionDialog } from "./push-permission-dialog";
+import { PushDeviceProvider } from "./push-device-provider";
 export function Workspace() {
+  const { state } = useApp();
+  return (
+    <PushDeviceProvider
+      key={state?.viewer.id ?? "guest"}
+      userId={state?.viewer.id}
+    >
+      <WorkspaceContent />
+    </PushDeviceProvider>
+  );
+}
+function WorkspaceContent() {
   const { state, base, error, refresh } = useApp(),
     pathname = usePathname(),
     params = useSearchParams();
@@ -26,18 +39,34 @@ export function Workspace() {
       (sum, c) => sum + unreadCount(c, state.messages, state.viewer.id),
       0,
     ) ?? 0;
+  const currentPost =
+    section === "posts"
+      ? state?.posts.find((post) => post.id === path[1] && !post.deleted_at)
+      : undefined;
+  const activeSection =
+    section === "posts"
+      ? currentPost
+        ? isMarket(currentPost.kind)
+          ? "market"
+          : "lost"
+        : null
+      : section === "new"
+        ? params.get("type") === "lost"
+          ? "lost"
+          : "market"
+        : section;
   const navigation = [
     {
       path: "",
       label: "나눔",
       icon: Home,
-      active: section === "market" || section === "posts" || section === "new",
+      active: activeSection === "market",
     },
     {
       path: "/lost",
       label: "분실물",
       icon: PackageSearch,
-      active: section === "lost",
+      active: activeSection === "lost",
     },
     {
       path: "/chats",
@@ -59,6 +88,7 @@ export function Workspace() {
       <a className="skip-link" href="#content">
         본문으로 이동
       </a>
+      <PushPermissionDialog eligible={!focus && section !== "me"} />
       <header className="site-header">
         <div className="header-inner">
           <Link href={base} aria-label="합스당근 나눔">

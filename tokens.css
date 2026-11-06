@@ -1,22 +1,28 @@
-/* Hallmark · pre-emit critique: P4 H4 E4 S4 R5 V4
- * macrostructure: Catalogue / Workbench · theme: HAFS draft · modern-minimal
- * Single Korean sans family intentionally preserves legibility across app surfaces.
- */
+/* HAFS 당근 identity · output/hafsdaangn-logo-kit/guidelines/brand-guide.html */
 :root {
-  --color-paper: oklch(99.7% 0.002 80);
-  --color-ink: oklch(24% 0.012 130);
-  --color-muted: oklch(49% 0.013 110);
-  --color-subtle: oklch(95.7% 0.007 90);
-  --color-line: oklch(91.5% 0.007 90);
-  --color-accent: oklch(55% 0.175 40);
-  --color-accent-hover: oklch(49% 0.16 40);
-  --color-accent-soft: oklch(95% 0.03 55);
+  --color-brand-blue: #0054b8;
+  --color-blue-soft: color-mix(in srgb, var(--color-brand-blue) 10%, white);
+  --color-brand-orange: #ff6800;
+  --color-paper: #ffffff;
+  --color-ink: #152338;
+  --color-muted: #536277;
+  --color-subtle: #f5f7fa;
+  --color-line: #dbe2eb;
+  --color-accent: var(--color-brand-orange);
+  --color-accent-hover: #f06000;
+  --color-accent-soft: #fff2e8;
+  --color-accent-ink: #ad4600;
+  --color-secondary: var(--color-accent);
+  --color-secondary-hover: var(--color-accent-hover);
+  --color-secondary-soft: var(--color-accent-soft);
   --color-green: oklch(42% 0.095 145);
   --color-green-soft: oklch(95% 0.025 135);
   --color-danger: oklch(48% 0.17 26);
   --color-danger-soft: oklch(96% 0.02 26);
-  --color-on-accent: oklch(100% 0 0);
-  --color-focus: oklch(43% 0.14 240);
+  --color-on-accent: #ffffff;
+  --color-on-danger: #ffffff;
+  --color-on-overlay: #ffffff;
+  --color-focus: var(--color-accent);
   --color-shadow: oklch(20% 0.01 90 / 0.08);
   --color-photo-overlay: oklch(20% 0.01 90 / 0.65);
   --color-placeholder-background: oklch(94% 0.004 260);

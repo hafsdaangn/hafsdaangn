@@ -5,6 +5,7 @@ import { storageAdmin } from "@/lib/supabase/server";
 import { failure, json, sameOrigin } from "@/lib/http";
 import { forgetPushDevice, pushConfigured, pushCookie } from "@/lib/push";
 import { subscriptionSchema } from "@/lib/push-schema";
+import { initializePushDefaults } from "@/lib/push-defaults";
 
 export async function GET() {
   try {
@@ -37,29 +38,28 @@ export async function POST(request: Request) {
   try {
     sameOrigin(request);
     const { user } = await member();
-    if (!pushConfigured()) throw new Error("채팅 알림을 준비하고 있어요.");
+    if (!pushConfigured()) throw new Error("알림을 준비하고 있어요.");
     const subscription = subscriptionSchema.parse(await request.json());
     const jar = await cookies();
     // The random, HttpOnly device cookie lets logout detach this device safely.
     const device = jar.get(pushCookie)?.value || randomUUID();
     const admin = storageAdmin();
+    await initializePushDefaults(admin, user.id);
     const { error: cleanupError } = await admin
       .from("push_subscriptions")
       .delete()
       .eq("device_id", device)
       .neq("endpoint", subscription.endpoint);
     if (cleanupError) throw new Error("알림 연결을 갱신하지 못했어요.");
-    const { error } = await admin
-      .from("push_subscriptions")
-      .upsert(
-        {
-          ...subscription,
-          device_id: device,
-          user_id: user.id,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "endpoint" },
-      );
+    const { error } = await admin.from("push_subscriptions").upsert(
+      {
+        ...subscription,
+        device_id: device,
+        user_id: user.id,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "endpoint" },
+    );
     if (error)
       throw new Error("알림을 설정하지 못했어요. 잠시 후 다시 시도해 주세요.");
     jar.set(pushCookie, device, {

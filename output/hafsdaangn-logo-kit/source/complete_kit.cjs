@@ -1,0 +1,20 @@
+const fs = require('fs');
+const path = require('path');
+const {pathToFileURL} = require('url');
+const {chromium} = require('playwright');
+const R = path.resolve(__dirname, '..');
+(async()=>{
+  const browser=await chromium.launch({headless:true,executablePath:process.env.LOGO_BROWSER||'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'});
+  const page=await browser.newPage({viewport:{width:1400,height:1050}});
+  await page.goto(pathToFileURL(path.join(R,'guidelines/brand-guide.html')).href);
+  await page.evaluate(()=>document.fonts.ready);
+  await page.pdf({path:path.join(R,'guidelines/brand-guide.pdf'),printBackground:true,preferCSSPageSize:true});
+  await page.locator('main').screenshot({path:path.join(R,'qa/brand-guide.png')});
+  const overview=`<!doctype html><html lang="ko"><meta charset="utf-8"><style>*{box-sizing:border-box}body{margin:0;background:#eef2f7;color:#17263d;font:15px 'Malgun Gothic',sans-serif;padding:42px}h1{font-size:32px;margin:0 0 8px}p{color:#627086;margin:0 0 24px}.hero{height:340px;background:#fff;display:flex;align-items:center;justify-content:center;border-radius:18px;margin-bottom:20px}.hero img{height:285px}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}.card{height:255px;background:white;border-radius:14px;padding:24px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px}.card img{max-width:100%;height:150px}.dark{background:#17263d;color:white}.label{font-size:13px;color:inherit}.foot{display:flex;gap:28px;margin-top:24px;align-items:center}.sw{height:22px;width:22px;border-radius:6px;display:inline-block;vertical-align:middle;margin-right:8px}</style><h1>HAFS 당근 · Logo package</h1><p>마지막 선택 시안 기준 / 가로·세로 조합 / 벡터·인쇄·디지털·웹 아이콘</p><div class="hero"><img src="../vector/hafsdaangn-horizontal-color.svg"></div><div class="grid"><div class="card"><img src="../vector/hafsdaangn-stacked-color.svg"><span class="label">세로 조합</span></div><div class="card"><img src="../vector/hafsdaangn-symbol-black.svg"><span class="label">단색 심볼</span></div><div class="card dark"><img src="../vector/hafsdaangn-horizontal-white.svg"><span class="label">어두운 배경 · 반전</span></div><div class="card"><img src="../web/app-icon.svg"><span class="label">앱 아이콘 · 프로필</span></div></div><div class="foot"><span><i class="sw" style="background:#0054B8"></i>Blue #0054B8</span><span><i class="sw" style="background:#FF6800"></i>Orange #FF6800</span><span>SVG · PDF · PNG · JPG · ICO</span></div></html>`;
+  fs.writeFileSync(path.join(R,'presentation/package-overview.html'),overview);
+  await page.goto(pathToFileURL(path.join(R,'presentation/package-overview.html')).href);
+  await page.evaluate(()=>document.fonts.ready);
+  await page.screenshot({path:path.join(R,'presentation/package-overview.png'),fullPage:true});
+  await browser.close();
+  console.log('Rendered guide PDF and package overview');
+})();

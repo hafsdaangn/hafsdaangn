@@ -1,0 +1,45 @@
+{
+  "brand": "HAFS 당근",
+  "brief": "왼쪽 심볼의 유려한 곡선을 유지하고, 부드럽지만 단정한 워드마크로 균형을 맞춘 학교 커뮤니티 로고.",
+  "adjectives": [
+    "친근함",
+    "명료함",
+    "균형"
+  ],
+  "criteria": "선택한 마지막 시안의 비율을 유지하고, 크기와 배경에 맞춰 일관되게 사용합니다.",
+  "industry": "consumer-app",
+  "nav": [
+    "둘러보기",
+    "관심 목록",
+    "내 정보"
+  ],
+  "brand_color": "#0054B8",
+  "tile_color": "#F2F5FA",
+  "greyscale": false,
+  "final": true,
+  "round": 3,
+  "designer": "HAFS 당근",
+  "concepts": [
+    {
+      "name": "Final identity",
+      "symbol": "../vector/hafsdaangn-symbol-color.svg",
+      "lockup": "../vector/hafsdaangn-horizontal-color.svg",
+      "stacked": "../vector/hafsdaangn-stacked-color.svg",
+      "avatar": "../social/hafsdaangn-avatar.svg",
+      "symbol_on_tile": "../vector/hafsdaangn-symbol-color.svg",
+      "lockup_on_dark": "../vector/hafsdaangn-horizontal-white.svg",
+      "symbol_on_dark": "../vector/hafsdaangn-symbol-white.svg",
+      "idea": "유려한 심볼과 간결하게 정돈한 HAFS 당근 워드마크.",
+      "rationale": [
+        "마지막 선택 시안의 크기·배치·글자 형태를 기준으로 벡터화",
+        "미세한 가장자리 잡색을 제거하고 두 가지 단색으로 통일",
+        "가로·세로·심볼·워드마크와 작은 화면용 자산 제공"
+      ]
+    }
+  ],
+  "recommendation": "기본은 가로형 컬러 로고, 좁은 공간에는 심볼 단독을 사용합니다.",
+  "next_steps": [
+    "제공한 SVG·PNG를 용도에 맞게 사용",
+    "인쇄는 실제 출력 색상 확인 후 진행"
+  ]
+}

@@ -1,0 +1,65 @@
+.dialog {
+  overflow-y: auto;
+  height: fit-content;
+  padding: 24px;
+}
+.dialog h2 {
+  overflow-wrap: anywhere;
+}
+.guide {
+  margin-top: 16px;
+  text-align: left;
+}
+.guide ol {
+  padding-left: 22px;
+  margin: 0 0 16px;
+}
+.guide li {
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0;
+}
+.actions button {
+  white-space: nowrap;
+}
+.dialog .actions {
+  justify-content: flex-end;
+  margin-bottom: 0;
+}
+.dialog button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+}
+.dialog button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+.dialog .step {
+  color: var(--color-accent-ink);
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.installSection {
+  margin-bottom: 24px;
+}
+
+.entry {
+  max-width: 360px;
+  margin: 20px auto 0;
+  font-size: 14px;
+  text-align: left;
+}
+.entry summary {
+  color: var(--color-muted);
+  cursor: pointer;
+  text-align: center;
+}
+.entry summary:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 4px;
+}

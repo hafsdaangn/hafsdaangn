@@ -1,10 +1,19 @@
-import type { Message } from "./domain";
+import type { Message, Post } from "./domain";
 
 function preview(value: string, limit: number) {
   const characters = Array.from(value.replace(/\s+/g, " ").trim());
   return characters.length > limit
     ? `${characters.slice(0, limit).join("")}…`
     : characters.join("");
+}
+
+export function postPushContent(post: Post) {
+  return {
+    title: `새 ${post.kind === "giveaway" ? "나눔" : "분실물"} 글 · ${preview(post.title, 60)}`,
+    body: preview(post.body, 160) || "새 글을 확인해 보세요.",
+    url: `/app/posts/${post.id}`,
+    tag: `post-${post.id}`,
+  };
 }
 
 export function chatPushContent(

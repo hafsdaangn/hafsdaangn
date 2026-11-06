@@ -1,0 +1,182 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import {
+  connectPush,
+  snooze,
+  snoozed,
+  withTimeout,
+  readPushChoice,
+  writePushChoice,
+  type PreparedPush,
+} from "../lib/push-client";
+import { devicePermission } from "../lib/push-permission";
+import {
+  deviceEnvironment,
+  observeInstall,
+  installSnapshot,
+  promptInstall,
+} from "../lib/pwa-install";
+
+function replace(name: string, value: unknown) {
+  const old = Object.getOwnPropertyDescriptor(globalThis, name);
+  Object.defineProperty(globalThis, name, {
+    value,
+    configurable: true,
+    writable: true,
+  });
+  return () => {
+    if (old) Object.defineProperty(globalThis, name, old);
+    else Reflect.deleteProperty(globalThis, name);
+  };
+}
+
+test("device eligibility distinguishes iOS tabs, installed apps, old OS, in-app and insecure contexts", () => {
+  const browser = Object.assign(new EventTarget(), {
+    isSecureContext: true,
+    Notification: {},
+    PushManager: {},
+  });
+  const navigator = {
+    userAgent: "iPhone OS 18_4",
+    platform: "iPhone",
+    maxTouchPoints: 1,
+    serviceWorker: {},
+  };
+  let standalone = false;
+  const restore = [
+    replace("window", browser),
+    replace("navigator", navigator),
+    replace("Notification", { permission: "default" }),
+    replace("matchMedia", () => ({ matches: standalone })),
+  ];
+  try {
+    assert.equal(devicePermission(), "install");
+    standalone = true;
+    assert.equal(devicePermission(), "default");
+    navigator.userAgent = "iPhone OS 16_3";
+    assert.equal(devicePermission(), "old-ios");
+    navigator.userAgent = "iPhone OS 18_4 KAKAOTALK";
+    assert.equal(devicePermission(), "in-app");
+    navigator.userAgent = "Android 14";
+    browser.isSecureContext = false;
+    assert.equal(devicePermission(), "insecure");
+    browser.isSecureContext = true;
+    navigator.userAgent = "Macintosh";
+    navigator.platform = "MacIntel";
+    navigator.maxTouchPoints = 5;
+    assert.equal(deviceEnvironment().ios, true);
+  } finally {
+    restore.reverse().forEach((undo) => undo());
+  }
+});
+
+test("install event may arrive late and can only be consumed once", async () => {
+  const browser = Object.assign(new EventTarget(), { isSecureContext: true });
+  const restore = [
+    replace("window", browser),
+    replace("navigator", {
+      userAgent: "Android",
+      platform: "Linux",
+      maxTouchPoints: 1,
+    }),
+    replace("matchMedia", () =>
+      Object.assign(new EventTarget(), { matches: false }),
+    ),
+  ];
+  const stop = observeInstall();
+  try {
+    assert.equal(installSnapshot().prompt, null);
+    let calls = 0;
+    const event = Object.assign(
+      new Event("beforeinstallprompt", { cancelable: true }),
+      {
+        prompt: async () => {
+          calls++;
+        },
+        userChoice: Promise.resolve({ outcome: "accepted" }),
+      },
+    );
+    browser.dispatchEvent(event);
+    assert.equal(event.defaultPrevented, true);
+    const first = promptInstall();
+    await assert.rejects(promptInstall());
+    assert.equal(await first, "accepted");
+    assert.equal(calls, 1);
+    assert.equal(installSnapshot().installed, false);
+    browser.dispatchEvent(new Event("appinstalled"));
+    assert.equal(installSnapshot().installed, true);
+  } finally {
+    stop();
+    restore.reverse().forEach((undo) => undo());
+  }
+});
+
+test("subscribe starts synchronously from click and server failure retains subscription for retry", async () => {
+  const calls: string[] = [];
+  const subscription = {
+    toJSON: () => ({ endpoint: "https://push.apple.com/test" }),
+  } as PushSubscription;
+  const prepared = {
+    config: { configured: true, publicKey: "key", subscribed: false },
+    key: new Uint8Array([1]),
+    subscription: null,
+    registration: {
+      pushManager: {
+        subscribe: () => {
+          calls.push("subscribe");
+          return Promise.resolve(subscription);
+        },
+      },
+    },
+  } as unknown as PreparedPush;
+  let fail = true;
+  const undo = replace("fetch", async (_url: string, request: RequestInit) => {
+    calls.push(request.method!);
+    return new Response(
+      JSON.stringify(fail ? { error: "save failed" } : { ok: true }),
+      { status: fail ? 503 : 200 },
+    );
+  });
+  try {
+    const result = connectPush(prepared);
+    assert.deepEqual(calls, ["subscribe"]);
+    await assert.rejects(result, /save failed/);
+    assert.equal(prepared.subscription, subscription);
+    fail = false;
+    assert.equal(await connectPush(prepared), subscription);
+    assert.deepEqual(calls, ["subscribe", "POST", "POST"]);
+  } finally {
+    undo();
+  }
+});
+
+test("unconfigured push cannot subscribe and stalled preparation times out", async () => {
+  await assert.rejects(
+    connectPush({ config: { configured: false } } as PreparedPush),
+    /준비/,
+  );
+  await assert.rejects(withTimeout(new Promise(() => {}), 5), /오래/);
+});
+
+test("stage snoozes expire independently and choices survive blocked storage", () => {
+  const undo = replace("localStorage", {
+    getItem: () => "stale",
+    setItem: () => {
+      throw new Error("blocked");
+    },
+  });
+  try {
+    snooze("member-a", "install");
+    assert.equal(snoozed("member-a", "install"), true);
+    assert.equal(snoozed("member-a", "push"), false);
+    assert.equal(snoozed("member-b", "install"), false);
+    assert.equal(
+      snoozed("member-a", "install", Date.now() + 8 * 86400000),
+      false,
+    );
+    writePushChoice("choice", "new");
+    assert.equal(readPushChoice("choice"), "new");
+  } finally {
+    undo();
+  }
+});

@@ -171,7 +171,7 @@ export function PostDetail({
                 <MapPin size={19} />
                 <div>
                   <span>분실·발견 장소</span>
-                  <strong>{post.place}</strong>
+                  <div className="location-value">{post.place}</div>
                 </div>
               </div>
             )}
@@ -180,7 +180,7 @@ export function PostDetail({
                 <PackageOpen size={19} />
                 <div>
                   <span>보관 방법</span>
-                  <strong>{post.custody}</strong>
+                  <div className="location-value">{post.custody}</div>
                 </div>
               </div>
             )}
@@ -188,25 +188,44 @@ export function PostDetail({
           <ErrorNotice message={error} />
           {mine ? (
             <div className="owner-actions">
-              <label htmlFor="post-status">진행 상태</label>
-              <select
-                id="post-status"
-                disabled={busy}
-                value={post.status}
-                onChange={(e) =>
-                  void action("post.status", {
-                    id,
-                    status: e.target.value,
-                    updated_at: post.updated_at,
-                  })
-                }
-              >
-                <option value="active">{market ? "나눔 중" : "찾는 중"}</option>
-                {market && <option value="reserved">예약 중</option>}
-                <option value="completed">
-                  {market ? "나눔 완료" : "해결 완료"}
-                </option>
-              </select>
+              <div className="owner-status">
+                <span id="post-status-label">진행 상태</span>
+                <div
+                  className="owner-status-options"
+                  role="radiogroup"
+                  aria-labelledby="post-status-label"
+                  aria-busy={busy}
+                >
+                  {[
+                    { value: "active", label: market ? "나눔 중" : "찾는 중" },
+                    ...(market
+                      ? [{ value: "reserved", label: "예약 중" }]
+                      : []),
+                    {
+                      value: "completed",
+                      label: market ? "나눔 완료" : "해결 완료",
+                    },
+                  ].map((option) => (
+                    <label key={option.value}>
+                      <input
+                        type="radio"
+                        name="post-status"
+                        value={option.value}
+                        checked={post.status === option.value}
+                        disabled={busy}
+                        onChange={() => {
+                          void action("post.status", {
+                            id,
+                            status: option.value,
+                            updated_at: post.updated_at,
+                          });
+                        }}
+                      />
+                      <span>{option.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
               <div className="owner-buttons">
                 <Link
                   className="button ghost"

@@ -11,6 +11,7 @@ import {
 } from "@/lib/domain";
 import { useApp } from "./provider";
 import { PageHeading, ErrorNotice, Spinner } from "./ui";
+import { Select } from "./select";
 export function PostForm({
   post,
   lost = false,
@@ -213,15 +214,16 @@ export function PostForm({
           {market && (
             <div className="field">
               <label htmlFor="category">카테고리</label>
-              <select
+              <Select
                 id="category"
                 name="category"
                 defaultValue={post?.category ?? categories[0]}
-              >
-                {categories.map((c) => (
-                  <option key={c}>{c}</option>
-                ))}
-              </select>
+                disabled={busy}
+                options={categories.map((category) => ({
+                  value: category,
+                  label: category,
+                }))}
+              />
             </div>
           )}
           <div className="field">
@@ -266,7 +268,7 @@ export function PostForm({
                 id="custody"
                 name="custody"
                 maxLength={100}
-                defaultValue={post?.custody || "직접 보관 중"}
+                defaultValue={post?.custody ?? ""}
                 placeholder="직접 보관 중 또는 맡긴 장소"
               />
             </div>

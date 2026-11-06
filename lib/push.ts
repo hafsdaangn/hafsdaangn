@@ -3,8 +3,13 @@ import webpush from "web-push";
 import { cookies } from "next/headers";
 import { storageAdmin } from "@/lib/supabase/server";
 import { pushEndpoint } from "@/lib/push-schema";
-import type { Message } from "@/lib/domain";
-import { chatPushContent } from "@/lib/push-content";
+import type { Message, Post } from "@/lib/domain";
+import { chatPushContent, postPushContent } from "@/lib/push-content";
+import {
+  matchesPostNotification,
+  postNotificationSection,
+  type PostNotificationSetting,
+} from "@/lib/post-notifications";
 
 export const pushCookie = "push-device";
 function trace(event: string, details: Record<string, unknown> = {}) {
@@ -46,6 +51,14 @@ export async function notifyChat(message: Message) {
   if (roomError) throw new Error("Push conversation lookup failed");
   const recipient =
     room.seller_id === message.sender_id ? room.buyer_id : room.seller_id;
+  const { data: preference, error: preferenceError } = await admin
+    .from("chat_notification_settings")
+    .select("enabled")
+    .eq("user_id", recipient)
+    .maybeSingle();
+  if (preferenceError)
+    throw new Error("Chat notification setting lookup failed");
+  if (preference?.enabled === false) return;
   const readSeq =
     room.seller_id === recipient ? room.seller_read_seq : room.buyer_read_seq;
   if (readSeq >= message.seq) {
@@ -128,4 +141,76 @@ export async function notifyChat(message: Message) {
       }
     }),
   );
+}
+
+export async function notifyPost(post: Post) {
+  const section = postNotificationSection(post.kind);
+  if (!pushConfigured() || !section || post.deleted_at) return;
+  const admin = storageAdmin();
+  // Page through recipients so the Data API row cap never silently drops subscribers.
+  const content = JSON.stringify(postPushContent(post));
+  webpush.setVapidDetails(
+    process.env.VAPID_SUBJECT!,
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
+    process.env.VAPID_PRIVATE_KEY!,
+  );
+  for (let offset = 0; ; offset += 100) {
+    const { data: settings, error } = await admin
+      .from("post_notification_settings")
+      .select("user_id,section,mode,keywords")
+      .eq("section", section)
+      .neq("user_id", post.author_id)
+      .order("user_id")
+      .range(offset, offset + 99);
+    if (error) throw new Error("Post notification settings lookup failed");
+    const recipients = (settings ?? [])
+      .filter((setting) =>
+        matchesPostNotification(post, setting as PostNotificationSetting),
+      )
+      .map((setting) => setting.user_id);
+    for (const recipient of recipients) {
+      const { data: subscriptions, error: subscriptionError } = await admin
+        .from("push_subscriptions")
+        .select("endpoint,keys,device_id")
+        .eq("user_id", recipient);
+      if (subscriptionError)
+        throw new Error("Post push subscriptions lookup failed");
+      await Promise.all(
+        (subscriptions ?? []).map(async (subscription) => {
+          if (!pushEndpoint(subscription.endpoint)) return;
+          const { error: claimError } = await admin
+            .from("post_push_deliveries")
+            .insert({ post_id: post.id, device_id: subscription.device_id });
+          if (claimError?.code === "23505") return;
+          if (claimError) throw new Error("Post push delivery claim failed");
+          try {
+            await webpush.sendNotification(subscription, content, {
+              TTL: 3600,
+              urgency: "normal",
+              timeout: 8000,
+            });
+          } catch (error) {
+            const status = (error as { statusCode?: number }).statusCode;
+            if (status === 404 || status === 410) {
+              await admin
+                .from("push_subscriptions")
+                .delete()
+                .eq("device_id", subscription.device_id)
+                .eq("endpoint", subscription.endpoint);
+            } else {
+              await admin
+                .from("post_push_deliveries")
+                .delete()
+                .eq("post_id", post.id)
+                .eq("device_id", subscription.device_id);
+              console.error("Post push delivery failed", {
+                status: status ?? "network",
+              });
+            }
+          }
+        }),
+      );
+    }
+    if (!settings || settings.length < 100) break;
+  }
 }

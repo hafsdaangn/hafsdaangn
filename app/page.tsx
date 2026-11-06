@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { appEnvironment } from "@/lib/environment";
 import { Brand } from "@/components/ui";
+import { InstallEntry } from "@/components/install-entry";
 import { configured } from "@/lib/supabase/server";
 export default async function Landing({
   searchParams,
@@ -23,7 +24,7 @@ export default async function Landing({
       <main className="landing-main">
         <div className="landing-copy">
           <h1>
-            <Brand />
+            <Brand full />
           </h1>
           <div className="login-actions">
             <a
@@ -40,11 +41,9 @@ export default async function Landing({
               </p>
             )}
           </div>
+          <InstallEntry />
         </div>
       </main>
-      <footer className="landing-footer">
-        <span>합스당근</span>
-      </footer>
     </div>
   );
 }

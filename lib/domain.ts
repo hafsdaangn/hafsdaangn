@@ -2,9 +2,8 @@ import { z } from "zod";
 
 export const categories = [
   "교재·도서",
-  "문구·학습용품",
+  "문구",
   "전자기기",
-  "의류·잡화",
   "생활용품",
   "기타",
 ] as const;

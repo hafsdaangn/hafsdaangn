@@ -3,8 +3,8 @@ import { failure, json, sameOrigin } from "@/lib/http";
 import { messageSchema, postSchema } from "@/lib/domain";
 import { z } from "zod";
 import { after } from "next/server";
-import { notifyChat } from "@/lib/push";
-import type { Message } from "@/lib/domain";
+import { notifyChat, notifyPost } from "@/lib/push";
+import type { Message, Post } from "@/lib/domain";
 const schemas = {
   "post.save": postSchema,
   "post.status": z.object({
@@ -51,6 +51,14 @@ export async function POST(request: Request) {
           await notifyChat(data as Message);
         } catch {
           console.error("Chat push processing failed");
+        }
+      });
+    if (op === "post.save" && !("id" in parsed.data))
+      after(async () => {
+        try {
+          await notifyPost(data as Post);
+        } catch {
+          console.error("Post push processing failed");
         }
       });
     return json(data);

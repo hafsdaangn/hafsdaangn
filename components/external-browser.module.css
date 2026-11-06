@@ -1,0 +1,22 @@
+.notice {
+  position: relative;
+  z-index: 10;
+  padding: 16px max(20px, env(safe-area-inset-left));
+  border-bottom: 1px solid var(--color-line);
+  background: var(--color-paper);
+  color: var(--color-ink);
+  text-align: center;
+}
+
+.notice p {
+  margin: 0 auto 12px;
+  max-width: 540px;
+  font-size: 14px;
+}
+
+.notice .hint {
+  margin-top: 12px;
+  margin-bottom: 0;
+  color: var(--color-muted);
+  font-size: 12px;
+}

@@ -7,13 +7,15 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test tests/domain.test.ts tests/database.test.ts tests/push.test.ts",
+    "test": "tsx --test tests/domain.test.ts tests/database.test.ts tests/push.test.ts tests/external-browser.test.ts tests/pwa.test.ts",
     "pretest:e2e": "next build",
     "test:e2e": "playwright test",
+    "test:pwa": "playwright test --config playwright.pwa.config.ts",
     "format": "prettier --write app components lib tests tokens.css playwright.config.ts"
   },
   "dependencies": {
     "@fontsource-variable/noto-sans-kr": "5.3.0",
+    "@radix-ui/react-select": "2.4.1",
     "@supabase/ssr": "0.12.7",
     "@supabase/supabase-js": "2.117.1",
     "lucide-react": "1.47.0",

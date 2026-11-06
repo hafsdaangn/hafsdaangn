@@ -330,6 +330,15 @@ test("Postgres schema enforces membership, ownership, media and private chat", a
     ],
   );
   for (const uid of [seller, buyer, stranger]) {
+    for (const table of [
+      "post_notification_settings",
+      "post_push_deliveries",
+      "chat_notification_settings",
+    ])
+      await assert.rejects(
+        as(uid, (tx) => tx.query(`select * from public.${table}`)),
+        /permission denied/,
+      );
     await assert.rejects(
       as(uid, (tx) => tx.query("select * from public.push_subscriptions")),
       /permission denied/,
@@ -354,6 +363,57 @@ test("Postgres schema enforces membership, ownership, media and private chat", a
     ),
     /duplicate key/,
   );
+  await db.query(
+    "insert into public.post_notification_settings(user_id,section,all_posts,keywords) values($1,'lost',false,ARRAY['지갑'])",
+    [seller],
+  );
+  await db.query(
+    "insert into public.chat_notification_settings(user_id,enabled) values($1,false)",
+    [seller],
+  );
+  assert.equal(
+    (
+      await db.query<{ enabled: boolean }>(
+        "select enabled from public.chat_notification_settings where user_id=$1",
+        [seller],
+      )
+    ).rows[0].enabled,
+    false,
+  );
+  await assert.rejects(
+    db.query(
+      "update public.post_notification_settings set mode='invalid' where user_id=$1",
+      [seller],
+    ),
+    /check constraint/,
+  );
+  assert.equal(
+    (
+      await db.query(
+        "select * from public.post_notification_settings where user_id=$1",
+        [seller],
+      )
+    ).rows.length,
+    1,
+  );
+  await db.query(
+    "insert into public.post_push_deliveries(post_id,device_id) values($1,$2)",
+    [postId, device],
+  );
+  await assert.rejects(
+    db.query(
+      "insert into public.post_push_deliveries(post_id,device_id) values($1,$2)",
+      [postId, device],
+    ),
+    /duplicate key/,
+  );
+  await assert.rejects(
+    db.query(
+      "insert into public.post_notification_settings(user_id,section) values($1,'sale')",
+      [seller],
+    ),
+    /check constraint/,
+  );
   await db.query("update private.members set active=false where id=$1", [
     seller,
   ]);
@@ -363,6 +423,10 @@ test("Postgres schema enforces membership, ownership, media and private chat", a
   );
   assert.equal(
     (await db.query("select * from public.push_deliveries")).rows.length,
+    0,
+  );
+  assert.equal(
+    (await db.query("select * from public.post_push_deliveries")).rows.length,
     0,
   );
   await db.query("update private.members set active=true where id=$1", [
