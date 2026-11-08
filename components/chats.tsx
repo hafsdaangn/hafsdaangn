@@ -11,6 +11,7 @@ import {
 } from "@/lib/domain";
 import { useApp } from "./provider";
 import { closeReadChatNotifications } from "@/lib/chat-notifications";
+import { ChatPhoto } from "./chat-photo";
 import {
   Avatar,
   Empty,
@@ -375,16 +376,10 @@ export function Chats({ id }: { id?: string }) {
                       <div className={`message ${mine ? "mine" : ""}`}>
                         <div className="bubble">
                           {message.image_id && (
-                            <a
-                              href={image(message.image_id)}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              <img
-                                src={image(message.image_id)}
-                                alt="채팅에 첨부된 사진"
-                              />
-                            </a>
+                            <ChatPhoto
+                              src={image(message.image_id)}
+                              alt="채팅에 첨부된 사진"
+                            />
                           )}
                           {message.body && <p>{message.body}</p>}
                         </div>
@@ -411,7 +406,10 @@ export function Chats({ id }: { id?: string }) {
                     <div className="message mine" key={p.client_id}>
                       <div className="bubble pending">
                         {p.image_id && (
-                          <img src={image(p.image_id)} alt="보내는 사진" />
+                          <ChatPhoto
+                            src={image(p.image_id)}
+                            alt="보내는 사진"
+                          />
                         )}
                         <p>{p.body}</p>
                       </div>
@@ -432,7 +430,7 @@ export function Chats({ id }: { id?: string }) {
             <ErrorNotice message={error} />
             {attachment && (
               <div className="attachment-preview">
-                <img src={image(attachment)} alt="첨부할 사진" />
+                <ChatPhoto src={image(attachment)} alt="첨부할 사진" />
                 <button onClick={() => setAttachment(null)}>사진 취소</button>
               </div>
             )}

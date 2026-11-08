@@ -77,6 +77,7 @@ async function openChat(
     history?: number;
     older?: boolean;
     holdRead?: boolean;
+    ios?: boolean;
   } = {},
 ) {
   await page.addInitScript((options) => {
@@ -86,9 +87,15 @@ async function openChat(
       holdChatRead: options.holdRead,
     });
     if (options.holdRead) {
+      if (options.ios)
+        Object.defineProperty(navigator, "userAgent", {
+          configurable: true,
+          value:
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 26_6_2 like Mac OS X) AppleWebKit/605.1.15 Version/26.6 Mobile Safari/604.1",
+        });
       const notification = (name: string, room: string, seq: number) => ({
         tag: `chat-${room}`,
-        data: { conversationId: room, seq },
+        data: { conversationId: room, seq, shownAt: Date.now() },
         close: () =>
           (window as unknown as { chatTest: Controls }).chatTest.closed.push(
             name,
@@ -174,6 +181,38 @@ test("chat notifications close only after successful reading, preserving newer a
     (window as unknown as { chatTest: Controls }).chatTest.finishRead(),
   );
   await expect.poll(controls).toEqual({ reads: [1, 1], closed: ["read"] });
+});
+
+test("iOS notification cleanup waits for WebKit's minimum visible lifetime and retries", async ({
+  page,
+}) => {
+  await page.clock.install();
+  await openChat(page, { history: 1, holdRead: true, ios: true });
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          (window as unknown as { chatTest: Controls }).chatTest.reads.length,
+      ),
+    )
+    .toBe(1);
+  await page.evaluate(() =>
+    (window as unknown as { chatTest: Controls }).chatTest.finishRead(),
+  );
+  await page.clock.fastForward(10000);
+  expect(
+    await page.evaluate(
+      () => (window as unknown as { chatTest: Controls }).chatTest.closed,
+    ),
+  ).toEqual([]);
+  await page.clock.fastForward(23000);
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => (window as unknown as { chatTest: Controls }).chatTest.closed,
+      ),
+    )
+    .toEqual(["read"]);
 });
 
 test("touch send keeps continuous input focus while sending multiple messages", async ({

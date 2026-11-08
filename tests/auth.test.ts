@@ -1,228 +1,331 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { runInNewContext } from "node:vm";
 import { build } from "esbuild";
+import { runInNewContext } from "node:vm";
+import { createRequire } from "node:module";
+import { webcrypto } from "node:crypto";
+import { SignJWT, generateKeyPair, exportJWK, jwtVerify } from "jose";
 
-// Exercise the actual protected layout and membership check with isolated auth
-// responses. No real account, database mutation, or network request is needed.
-const compiled = build({
-  entryPoints: ["app/app/layout.tsx"],
-  bundle: true,
-  write: false,
-  platform: "node",
-  format: "cjs",
-  define: {
-    "process.env.APP_ENV": '"production"',
-    "process.env.NODE_ENV": '"production"',
-  },
-  plugins: [
-    {
-      name: "auth-boundaries",
-      setup(builder) {
-        builder.onResolve(
-          {
-            filter:
-              /^(server-only|next\/navigation|@\/components\/provider|@\/lib\/supabase\/server|@\/lib\/auth-policy)$/,
-          },
-          (args) => ({ path: args.path, namespace: "auth-test" }),
-        );
-        builder.onLoad(
-          { filter: /.*/, namespace: "auth-test" },
-          ({ path }) => ({
-            contents:
-              path === "server-only"
-                ? ""
-                : path === "next/navigation"
-                  ? 'export function redirect(url){throw Object.assign(new Error("redirect"),{destination:url})}'
-                  : path === "@/components/provider"
-                    ? "export const AppProvider = ({children}) => children;"
-                    : path === "@/lib/auth-policy"
-                      ? "export async function ensureAuthPolicy(){globalThis.policyCalls++; if(globalThis.policyFailure)throw new Error('policy unavailable')}"
-                      : "export const configured=()=>globalThis.testConfigured;export const serverClient=async()=>globalThis.authClient;",
-          }),
-        );
-      },
-    },
-  ],
-});
-
-const schoolUser = {
-  email: "member@hafs.hs.kr",
-  email_confirmed_at: "2026-11-07",
-  identities: [{ provider: "google" }],
-};
-async function render({
-  user = null,
-  authError = null,
-  allowed = true,
-  rpcError = null,
-  configured = true,
-  policyFailure = false,
-}: {
-  user?: typeof schoolUser | null;
-  authError?: unknown;
-  allowed?: boolean;
-  rpcError?: unknown;
-  configured?: boolean;
-  policyFailure?: boolean;
-} = {}) {
-  const compiledModule = { exports: {} };
-  const context = {
-    module: compiledModule,
-    exports: compiledModule.exports,
-    testConfigured: configured,
-    policyFailure,
-    policyCalls: 0,
-    rpcCalls: 0,
-    authClient: {
-      auth: { getUser: async () => ({ data: { user }, error: authError }) },
-      rpc: async () => {
-        context.rpcCalls++;
-        return { data: allowed, error: rpcError };
-      },
-    },
-  };
-  runInNewContext((await compiled).outputFiles[0].text, context);
-  const layout = (
-    compiledModule.exports as {
-      default: (props: { children: string }) => Promise<unknown>;
-    }
-  ).default;
-  try {
-    return {
-      output: await layout({ children: "private content" }),
-      context,
-      destination: null,
-    };
-  } catch (error) {
-    if (!(error as { destination?: string }).destination) throw error;
-    return {
-      output: null,
-      context,
-      destination: (error as { destination: string }).destination,
-    };
-  }
-}
-
-test("fresh installed app without a session opens sign-in without an error", async () => {
-  for (const authError of [
-    null,
-    { __isAuthError: true, name: "AuthSessionMissingError", status: 400 },
-    { code: "refresh_token_not_found" },
-  ]) {
-    const result = await render({ authError });
-    assert.equal(result.destination, "/");
-    assert.equal(result.context.policyCalls, 0);
-    assert.equal(result.context.rpcCalls, 0);
-    assert.equal(result.output, null);
-  }
-});
-
-test("unapproved accounts remain blocked with the school account notice", async () => {
-  for (const user of [
-    { ...schoolUser, email: "member@gmail.com" },
-    { ...schoolUser, email_confirmed_at: "" },
-    { ...schoolUser, identities: [{ provider: "email" }] },
-  ])
-    assert.equal((await render({ user })).destination, "/?error=school");
-  assert.equal(
-    (await render({ user: schoolUser, allowed: false })).destination,
-    "/?error=school",
-  );
-});
-
-test("valid school session still renders the private app", async () => {
-  const result = await render({ user: schoolUser });
-  assert.equal(result.destination, null);
-  assert.ok(result.output);
-  assert.equal(result.context.policyCalls, 1);
-  assert.equal(result.context.rpcCalls, 1);
-});
-
-test("service failures are not misreported as a rejected school account", async () => {
-  assert.equal(
-    (await render({ authError: { code: "unexpected_failure" } })).destination,
-    "/?error=login",
-  );
-  assert.equal(
-    (
-      await render({
-        user: schoolUser,
-        rpcError: { code: "connection_failed" },
-      })
-    ).destination,
-    "/?error=login",
-  );
-  assert.equal(
-    (await render({ user: schoolUser, policyFailure: true })).destination,
-    "/?error=login",
-  );
-  assert.equal(
-    (await render({ configured: false })).destination,
-    "/?error=setup",
-  );
-});
-
-test("auth policy resyncs after success and failure, coalescing only concurrent calls", async () => {
+async function load(
+  entry: string,
+  globals: Record<string, unknown> = {},
+  fixtures: Record<string, string> = {},
+) {
   const result = await build({
-    entryPoints: ["lib/auth-policy.ts"],
+    entryPoints: [entry],
     bundle: true,
     write: false,
     platform: "node",
     format: "cjs",
-    define: { "process.env.APP_ENV": '"development"' },
     plugins: [
       {
-        name: "policy-boundaries",
-        setup(builder) {
-          builder.onResolve(
-            { filter: /^(server-only|\.\/supabase\/server)$/ },
-            (args) => ({ path: args.path, namespace: "policy-test" }),
+        name: "auth-boundaries",
+        setup(b) {
+          b.onResolve({ filter: /.*/ }, ({ path }) =>
+            path === "server-only" || Object.hasOwn(fixtures, path)
+              ? { path, namespace: "fixture" }
+              : undefined,
           );
-          builder.onLoad(
-            { filter: /.*/, namespace: "policy-test" },
-            ({ path }) => ({
-              contents:
-                path === "server-only"
-                  ? ""
-                  : "export const storageAdmin = () => ({rpc: (...args) => globalThis.syncPolicy(...args)});",
-            }),
-          );
+          b.onLoad({ filter: /.*/, namespace: "fixture" }, ({ path }) => ({
+            contents: fixtures[path] ?? "",
+            resolveDir: process.cwd(),
+          }));
         },
       },
     ],
   });
   const compiledModule = { exports: {} };
-  let calls = 0;
-  let databaseEnvironment = "production";
-  let failure = false;
   runInNewContext(result.outputFiles[0].text, {
     module: compiledModule,
     exports: compiledModule.exports,
-    syncPolicy: async (
-      name: string,
-      { environment }: { environment: string },
-    ) => {
-      assert.equal(name, "set_app_environment");
-      calls++;
-      if (failure) return { error: { code: "unavailable" } };
-      databaseEnvironment = environment;
-      return { error: null };
+    require: createRequire(import.meta.url),
+    Buffer,
+    TextEncoder,
+    TextDecoder,
+    URL,
+    URLSearchParams,
+    AbortSignal,
+    crypto: webcrypto,
+    Uint8Array,
+    Headers,
+    Request,
+    Response,
+    structuredClone,
+    atob,
+    btoa,
+    CryptoKey: webcrypto.CryptoKey,
+    setTimeout,
+    clearTimeout,
+    fetch,
+    console,
+    process: {
+      env: {
+        APP_ENV: "production",
+        APP_URL: "https://school.example",
+        GOOGLE_CLIENT_ID: "client-id",
+        GOOGLE_CLIENT_SECRET: "client-secret",
+        AUTH_SECRET: "x".repeat(64),
+        ...(globals.env as object),
+      },
     },
+    ...globals,
   });
-  const { ensureAuthPolicy } = compiledModule.exports as {
-    ensureAuthPolicy: () => Promise<void>;
+  return compiledModule.exports as typeof import("../lib/google-oauth") &
+    typeof import("../lib/database-token") & {
+      default: (props: {
+        children?: string;
+        searchParams?: Promise<{ error?: string }>;
+      }) => Promise<unknown>;
+    };
+}
+
+test("Google login uses our callback, S256 PKCE, state and nonce", async () => {
+  const oauth = await load("lib/google-oauth.ts");
+  const first = await oauth.beginGoogleLogin();
+  const second = await oauth.beginGoogleLogin();
+  const url = new URL(first.url);
+  assert.equal(url.origin, "https://accounts.google.com");
+  assert.equal(
+    url.searchParams.get("redirect_uri"),
+    "https://school.example/auth/callback",
+  );
+  assert.equal(url.searchParams.get("code_challenge_method"), "S256");
+  assert.equal(url.searchParams.get("hd"), "hafs.hs.kr");
+  assert.notEqual(first.cookie, second.cookie);
+  const state = url.searchParams.get("state")!;
+  const transaction = await oauth.readGoogleTransaction(first.cookie, state);
+  assert.equal(transaction.nonce, url.searchParams.get("nonce"));
+  await assert.rejects(oauth.readGoogleTransaction(first.cookie, "wrong"));
+  await assert.rejects(oauth.readGoogleTransaction(first.cookie + "x", state));
+  const expired = await new SignJWT({ state, nonce: "n", verifier: "v" })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuer("https://school.example")
+    .setAudience("google-login")
+    .setExpirationTime(1)
+    .sign(new TextEncoder().encode("x".repeat(64)));
+  await assert.rejects(oauth.readGoogleTransaction(expired, state));
+});
+
+test("Google claims reject unverified, non-school, wrong hosted domain and nonce", async () => {
+  const oauth = await load("lib/google-oauth.ts");
+  const valid = {
+    sub: "google-sub",
+    email: "student@hafs.hs.kr",
+    email_verified: true,
+    hd: "hafs.hs.kr",
+    nonce: "n",
   };
-  await Promise.all([ensureAuthPolicy(), ensureAuthPolicy()]);
-  assert.equal(calls, 1);
-  assert.equal(databaseEnvironment, "development");
-  databaseEnvironment = "production";
-  await ensureAuthPolicy();
-  assert.equal(calls, 2);
-  assert.equal(databaseEnvironment, "development");
-  failure = true;
-  await assert.rejects(ensureAuthPolicy());
-  failure = false;
-  await ensureAuthPolicy();
-  assert.equal(calls, 4);
+  assert.equal(oauth.validateGoogleClaims(valid, "n").sub, "google-sub");
+  for (const patch of [
+    { email_verified: false },
+    { email: "x@gmail.com" },
+    { hd: undefined },
+    { hd: "other.school" },
+    { nonce: "wrong" },
+    { sub: "" },
+    { azp: "other-client" },
+  ])
+    assert.throws(() =>
+      oauth.validateGoogleClaims({ ...valid, ...patch }, "n"),
+    );
+  const dev = await load("lib/google-oauth.ts", {
+    env: { APP_ENV: "development" },
+  });
+  assert.equal(
+    dev.validateGoogleClaims(
+      { ...valid, hd: undefined, email: "x@gmail.com" },
+      "n",
+    ).email,
+    "x@gmail.com",
+  );
+});
+
+test("Google token signatures, issuer and audience are verified before account data is trusted", async () => {
+  const { publicKey, privateKey } = await generateKeyPair("RS256");
+  const jwk = await exportJWK(publicKey);
+  const issue = (
+    issuer = "https://accounts.google.com",
+    audience = "client-id",
+    expires: string | number = "5m",
+    key = privateKey,
+  ) =>
+    new SignJWT({
+      nonce: "n",
+      email: "student@hafs.hs.kr",
+      email_verified: true,
+      hd: "hafs.hs.kr",
+    })
+      .setProtectedHeader({ alg: "RS256", kid: "test" })
+      .setSubject("google-sub")
+      .setIssuer(issuer)
+      .setAudience(audience)
+      .setIssuedAt()
+      .setExpirationTime(expires)
+      .sign(key);
+  let token = await issue();
+  let sent: URLSearchParams | undefined;
+  const oauth = await load(
+    "lib/google-oauth.ts",
+    {
+      fetch: async (url: string, init: RequestInit) => {
+        assert.equal(url, "https://oauth2.googleapis.com/token");
+        sent = init.body as URLSearchParams;
+        return Response.json({ id_token: token });
+      },
+    },
+    {
+      // Use a local public JWKS to exercise actual jose verification without network.
+      jose: `export { jwtVerify, SignJWT } from "jose-local"; import { createLocalJWKSet } from "jose-local";
+      export const createRemoteJWKSet=()=>createLocalJWKSet(${JSON.stringify({ keys: [{ ...jwk, kid: "test", alg: "RS256" }] })});`,
+      "jose-local": `export * from "${process.cwd().replaceAll("\\", "/")}/node_modules/jose/dist/webapi/index.js";`,
+    },
+  );
+  assert.equal(
+    (await oauth.finishGoogleLogin("code", { nonce: "n", verifier: "v" })).sub,
+    "google-sub",
+  );
+  assert.equal(sent!.get("code_verifier"), "v");
+  await assert.rejects(
+    oauth.finishGoogleLogin("code", { nonce: "wrong", verifier: "v" }),
+  );
+  const attacker = await generateKeyPair("RS256");
+  for (const invalid of [
+    await issue("https://attacker.example"),
+    await issue("https://accounts.google.com", "other-client"),
+    await issue("https://accounts.google.com", "client-id", 1),
+    await issue(
+      "https://accounts.google.com",
+      "client-id",
+      "5m",
+      attacker.privateKey,
+    ),
+  ]) {
+    token = invalid;
+    await assert.rejects(
+      oauth.finishGoogleLogin("code", { nonce: "n", verifier: "v" }),
+    );
+  }
+});
+
+test("private layouts reject absent, revoked and disallowed sessions", async () => {
+  for (const scenario of [
+    "missing",
+    "revoked",
+    "external",
+    "valid",
+    "database-error",
+    "setup",
+  ] as const) {
+    let policyCalls = 0;
+    const rendered = await load(
+      "app/app/layout.tsx",
+      {
+        lookup: async () => ({
+          data:
+            scenario === "revoked"
+              ? null
+              : {
+                  id: "id",
+                  email:
+                    scenario === "external" ? "x@gmail.com" : "x@hafs.hs.kr",
+                  session_id: "session",
+                },
+          error: scenario === "database-error" ? {} : null,
+        }),
+        getCookie: () =>
+          scenario === "missing" ? undefined : { value: "x".repeat(43) },
+        syncPolicy: () => {
+          policyCalls++;
+        },
+      },
+      {
+        "next/navigation":
+          'export function redirect(destination){throw Object.assign(new Error("redirect"),{destination})}',
+        "next/headers":
+          "export const cookies=async()=>({get:()=>globalThis.getCookie()});",
+        "@/components/provider":
+          "export const AppProvider=({children})=>children;",
+        "@/lib/supabase/server": `export const configured=()=>${scenario !== "setup"}; export const storageAdmin=()=>({rpc:()=>globalThis.lookup()}); export const databaseClient=()=>({});`,
+        "@/lib/auth-policy":
+          "export const ensureAuthPolicy=async()=>globalThis.syncPolicy();",
+        "@/lib/google-oauth":
+          'export const sessionCookie=()=>"session";export const tokenHash=(v)=>v;',
+        "@/lib/database-token":
+          'export const databaseToken=async()=>"scoped-token";',
+      },
+    );
+    const destinations = {
+      missing: "/?error=session",
+      revoked: "/?error=session",
+      external: "/?error=school",
+      "database-error": "/?error=connection",
+      setup: "/?error=setup",
+    };
+    if (scenario === "valid")
+      assert.ok(await rendered.default({ children: "private" }));
+    else
+      await assert.rejects(
+        rendered.default({ children: "private" }),
+        (e: unknown) =>
+          (e as { destination?: string }).destination ===
+          destinations[scenario],
+      );
+    if (scenario === "missing") assert.equal(policyCalls, 0);
+  }
+});
+
+test("landing restores a valid session even with an old error URL and distinguishes connection failures", async () => {
+  for (const scenario of ["valid", "missing", "offline"] as const) {
+    const page = await load(
+      "app/page.tsx",
+      { scenario },
+      {
+        "next/navigation":
+          'export function redirect(destination){throw Object.assign(new Error("redirect"),{destination})}',
+        "@/lib/supabase/server": "export const configured=()=>true;",
+        "@/lib/auth": `export class MembershipError extends Error {}
+        export async function member(){
+          if(globalThis.scenario==='missing') throw new MembershipError();
+          if(globalThis.scenario==='offline') throw new Error('Database unavailable');
+          return {user:{id:'existing-user'}};
+        }`,
+        "@/components/brand": "export const Brand=()=>null;",
+        "@/components/install-entry": "export const InstallEntry=()=>null;",
+      },
+    );
+    const props = { searchParams: Promise.resolve({ error: "school" }) };
+    if (scenario === "valid") {
+      await assert.rejects(
+        page.default(props),
+        (e: unknown) => (e as { destination?: string }).destination === "/app",
+      );
+    } else {
+      const rendered = JSON.stringify(await page.default(props));
+      if (scenario === "offline") {
+        assert.ok(rendered.includes("잠시 후 새로고침해 주세요."));
+        assert.ok(!rendered.includes("선택한 계정은 이용할 수 없어요."));
+      } else {
+        assert.ok(rendered.includes("학교 Google 계정을 선택해 주세요."));
+      }
+    }
+  }
+});
+
+test("database JWT is short-lived and contains user and revocable session IDs", async () => {
+  const { privateKey, publicKey } = await generateKeyPair("ES256", {
+    extractable: true,
+  });
+  const jwk = { ...(await exportJWK(privateKey)), kid: "test" };
+  const db = await load("lib/database-token.ts", {
+    env: { SUPABASE_SIGNING_JWK: JSON.stringify(jwk) },
+  });
+  const token = await db.databaseToken("user-id", "session-id");
+  const { payload } = await jwtVerify(token, publicKey, {
+    algorithms: ["ES256"],
+    audience: "authenticated",
+  });
+  assert.equal(payload.sub, "user-id");
+  assert.equal(payload.role, "authenticated");
+  assert.equal(payload.app_session_id, "session-id");
+  assert.equal(payload.exp! - payload.iat!, 300);
 });

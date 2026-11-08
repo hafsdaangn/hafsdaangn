@@ -265,10 +265,12 @@ export function PostDetail({
             </div>
           ) : (
             <div className="detail-action">
-              <div>
-                <small>{market ? "가격" : "분실물 연결"}</small>
-                <strong>{priceLabel(post)}</strong>
-              </div>
+              {market && post.kind !== "giveaway" && (
+                <div>
+                  <small>가격</small>
+                  <strong>{priceLabel(post)}</strong>
+                </div>
+              )}
               <button
                 className="button primary"
                 disabled={busy || (post.status === "completed" && !existing)}

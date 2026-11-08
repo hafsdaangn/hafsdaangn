@@ -479,3 +479,67 @@ test("successive chat pushes request another alert and worker updates activate i
   assert.equal(notifications[1].data?.conversationId, "room");
   assert.equal(notifications[1].data?.seq, 2);
 });
+
+test("worker cleanup respects WebKit lifetime and removes only the read chat's mature notifications", async () => {
+  const handlers: Record<string, (event: unknown) => void> = {};
+  const closed: string[] = [];
+  let now = 100000;
+  const replies: { retryAfter: number }[] = [];
+  const notification = (
+    id: string,
+    room: string,
+    seq: number,
+    shownAt: number,
+  ) => ({
+    id,
+    tag: `chat-${room}`,
+    data: { conversationId: room, seq, shownAt },
+    close: () => closed.push(id),
+  });
+  const notifications = [
+    notification("mature", "room", 4, 60000),
+    notification("young", "room", 5, 99000),
+    notification("unread", "room", 6, 60000),
+    notification("other", "other", 1, 60000),
+  ];
+  const self = {
+    addEventListener: (type: string, handler: (event: unknown) => void) => {
+      handlers[type] = handler;
+    },
+    location: { origin: "https://app.example" },
+    navigator: { userAgent: "iPhone AppleWebKit/605.1.15 Safari/604.1" },
+    registration: {
+      getNotifications: async () =>
+        notifications.filter((n) => !closed.includes(n.id)),
+    },
+  };
+  runInNewContext(readFileSync("public/sw.js", "utf8"), {
+    self,
+    URL,
+    Date: { now: () => now },
+  });
+  const pending: Promise<unknown>[] = [];
+  const message = () =>
+    handlers.message({
+      data: {
+        type: "close-read-chat-notifications",
+        conversationId: "room",
+        readSeq: 5,
+        requestedAt: 100000,
+      },
+      source: { url: "https://app.example/app/chats/room" },
+      ports: [
+        { postMessage: (value: { retryAfter: number }) => replies.push(value) },
+      ],
+      waitUntil: (task: Promise<unknown>) => pending.push(task),
+    });
+  message();
+  await Promise.all(pending);
+  assert.deepEqual(closed, ["mature"]);
+  assert.equal(replies[0].retryAfter, 31000);
+  now += 32000;
+  message();
+  await Promise.all(pending);
+  assert.deepEqual(closed, ["mature", "young"]);
+  assert.equal(replies[1].retryAfter, 0);
+});

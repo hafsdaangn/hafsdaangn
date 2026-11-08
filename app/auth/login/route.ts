@@ -1,28 +1,24 @@
 import { NextResponse } from "next/server";
-import { configured, serverClient } from "@/lib/supabase/server";
-import { appEnvironment } from "@/lib/environment";
-import { ensureAuthPolicy } from "@/lib/auth-policy";
+import { configured } from "@/lib/supabase/server";
+import {
+  appOrigin,
+  beginGoogleLogin,
+  cookieOptions,
+  oauthCookie,
+} from "@/lib/google-oauth";
 export async function GET(request: Request) {
-  const origin = new URL(process.env.APP_URL || request.url).origin;
+  const origin = process.env.APP_URL
+    ? appOrigin()
+    : new URL(request.url).origin;
   if (!configured())
     return NextResponse.redirect(new URL("/?error=setup", origin));
-  try {
-    await ensureAuthPolicy();
-  } catch {
-    return NextResponse.redirect(new URL("/?error=setup", origin));
-  }
-  const client = await serverClient();
-  const { data, error } = await client.auth.signInWithOAuth({
-    provider: "google",
-    options: {
-      redirectTo: new URL("/auth/callback", origin).toString(),
-      queryParams:
-        appEnvironment() === "production"
-          ? { hd: "hafs.hs.kr", prompt: "select_account" }
-          : { prompt: "select_account" },
-    },
+  const transaction = await beginGoogleLogin();
+  const response = NextResponse.redirect(transaction.url);
+  response.cookies.set(oauthCookie, transaction.cookie, {
+    ...cookieOptions(),
+    maxAge: 600,
   });
-  return NextResponse.redirect(
-    error || !data.url ? new URL("/?error=login", origin) : data.url,
-  );
+  response.headers.set("Cache-Control", "private, no-store");
+  response.headers.set("Referrer-Policy", "no-referrer");
+  return response;
 }

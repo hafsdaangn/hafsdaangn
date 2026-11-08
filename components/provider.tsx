@@ -141,6 +141,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // unread count, preview, or post status while reconciling in the back.
         if (version !== mutationVersion.current) return;
         const old = current.current;
+        if (old && old.viewer.id !== data.viewer.id) {
+          // Another tab signed in as a different account. Discard this document's
+          // private message/feed caches before showing that account's data.
+          window.location.reload();
+          return;
+        }
         const cached = [...feeds.current.values()];
         apply({
           ...data,

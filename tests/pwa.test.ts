@@ -89,6 +89,47 @@ test("notification cleanup is harmless without a worker or when notification acc
   }
 });
 
+test("notification cleanup prefers an acknowledged request to the active service worker", async () => {
+  let requested:
+    { type: string; conversationId: string; readSeq: number } | undefined;
+  let pageQueries = 0;
+  const restore = [
+    replace("window", { location: { origin: "https://app.example" } }),
+    replace("navigator", {
+      userAgent: "iPhone AppleWebKit/605.1.15 Safari/604.1",
+      serviceWorker: {
+        getRegistration: async () => ({
+          active: {
+            postMessage: (
+              data: NonNullable<typeof requested>,
+              ports: MessagePort[],
+            ) => {
+              requested = data;
+              ports[0].postMessage({
+                type: "chat-notifications-closed",
+                retryAfter: 0,
+              });
+            },
+          },
+          getNotifications: async () => {
+            pageQueries++;
+            return [];
+          },
+        }),
+      },
+    }),
+  ];
+  try {
+    await closeReadChatNotifications("worker-room", 9);
+    assert.equal(requested?.type, "close-read-chat-notifications");
+    assert.equal(requested?.conversationId, "worker-room");
+    assert.equal(requested?.readSeq, 9);
+    assert.equal(pageQueries, 0);
+  } finally {
+    restore.reverse().forEach((undo) => undo());
+  }
+});
+
 test("device eligibility distinguishes iOS tabs, installed apps, old OS, in-app and insecure contexts", () => {
   const browser = Object.assign(new EventTarget(), {
     isSecureContext: true,

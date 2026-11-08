@@ -826,6 +826,9 @@ input[type="checkbox"] {
 .detail-action .button {
   min-width: 155px;
 }
+.detail-action > .button:only-child {
+  width: 100%;
+}
 .owner-actions {
   border-top: 1px solid var(--color-line);
   margin-top: 24px;
@@ -1219,6 +1222,112 @@ input[type="checkbox"] {
 }
 .bubble.pending {
   opacity: 0.7;
+}
+.chat-photo-trigger {
+  display: block;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  max-width: 100%;
+}
+.chat-photo-trigger:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+}
+.chat-photo-dialog {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100dvh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: #101214;
+  color: #fff;
+  overflow: hidden;
+  overscroll-behavior: contain;
+  color-scheme: dark;
+}
+.chat-photo-dialog[open] {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+.chat-photo-dialog::backdrop {
+  background: #101214;
+}
+.chat-photo-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: calc(12px + env(safe-area-inset-top))
+    max(16px, env(safe-area-inset-right)) 12px
+    max(20px, env(safe-area-inset-left));
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
+  font-size: 15px;
+  font-weight: 500;
+}
+.chat-photo-toolbar > div {
+  display: flex;
+  gap: 8px;
+}
+.chat-photo-toolbar .icon-button:hover,
+.chat-photo-toolbar .icon-button:focus-visible {
+  background: rgb(255 255 255 / 12%);
+}
+.chat-photo-toolbar .icon-button:focus-visible,
+.chat-photo-feedback button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+.chat-photo-stage {
+  position: relative;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.chat-photo-canvas {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
+}
+.chat-photo-dialog .chat-photo-canvas img {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  margin: 0;
+  border-radius: 0;
+  object-fit: contain;
+}
+.chat-photo-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.chat-photo-feedback {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px;
+}
+.chat-photo-feedback button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-radius: 24px;
+  background: rgb(255 255 255 / 12%);
 }
 .message-time {
   font-size: 10px;
