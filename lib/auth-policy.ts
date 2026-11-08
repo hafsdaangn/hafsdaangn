@@ -16,9 +16,10 @@ export function ensureAuthPolicy() {
         throw new Error(
           `로그인 정책 동기화 실패 (${error.code || "연결 오류"}). DB 마이그레이션과 서버 키를 확인해 주세요.`,
         );
-    })().catch((error) => {
+    })().finally(() => {
+      // Only coalesce in-flight requests. Another server sharing this database
+      // can change its policy after a successful sync.
       pending = undefined;
-      throw error;
     });
   return pending;
 }

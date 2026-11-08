@@ -16,7 +16,7 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(data?.title || "합스당근", {
       body: data?.body || "새 채팅 메시지가 도착했어요.",
-      icon: "/icons/push-192.png",
+      badge: "/icons/notification-badge.png",
       tag: data?.tag || "chat",
       // Replacing an existing chat notification should alert again.
       renotify: true,

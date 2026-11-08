@@ -147,8 +147,14 @@ export async function notifyPost(post: Post) {
   const section = postNotificationSection(post.kind);
   if (!pushConfigured() || !section || post.deleted_at) return;
   const admin = storageAdmin();
+  const { data: author, error: authorError } = await admin
+    .from("profiles")
+    .select("display_name")
+    .eq("id", post.author_id)
+    .maybeSingle();
+  if (authorError) throw new Error("Post push author lookup failed");
   // Page through recipients so the Data API row cap never silently drops subscribers.
-  const content = JSON.stringify(postPushContent(post));
+  const content = JSON.stringify(postPushContent(post, author?.display_name));
   webpush.setVapidDetails(
     process.env.VAPID_SUBJECT!,
     process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,

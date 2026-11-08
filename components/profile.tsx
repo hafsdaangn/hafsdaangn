@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import Link from "./app-link";
 import { Bell, LogOut, ChevronRight } from "lucide-react";
 import type { Post } from "@/lib/domain";
 import { useApp } from "./provider";

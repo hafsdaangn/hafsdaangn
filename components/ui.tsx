@@ -1,5 +1,5 @@
 "use client";
-import Link from "next/link";
+import Link from "./app-link";
 import Image from "next/image";
 import {
   ArrowLeft,
@@ -151,7 +151,7 @@ export function PostCard({ post }: { post: Post }) {
           <small>받고 싶은 물건 · {post.wanted}</small>
         ) : post.kind === "sale" ? (
           <strong>{priceLabel(post)}</strong>
-        ) : post.kind === "lost" ? (
+        ) : post.kind === "lost" && post.status === "active" ? (
           <small>찾는 중</small>
         ) : null}
       </div>

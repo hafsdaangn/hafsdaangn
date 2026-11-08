@@ -140,7 +140,7 @@ test("subscribe starts synchronously from click and server failure retains subsc
   try {
     const result = connectPush(prepared);
     assert.deepEqual(calls, ["subscribe"]);
-    await assert.rejects(result, /save failed/);
+    await assert.rejects(result, /서버에 설정을 저장하지 못했어요/);
     assert.equal(prepared.subscription, subscription);
     fail = false;
     assert.equal(await connectPush(prepared), subscription);

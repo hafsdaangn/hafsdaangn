@@ -7,10 +7,13 @@ function preview(value: string, limit: number) {
     : characters.join("");
 }
 
-export function postPushContent(post: Post) {
+export function postPushContent(
+  post: Post,
+  displayName: string | null | undefined,
+) {
   return {
-    title: `새 ${post.kind === "giveaway" ? "나눔" : "분실물"} 글 · ${preview(post.title, 60)}`,
-    body: preview(post.body, 160) || "새 글을 확인해 보세요.",
+    title: `새 ${post.kind === "giveaway" ? "나눔" : "분실물"} 글`,
+    body: `${preview(post.title, 60)} · ${preview(displayName || "", 32) || "게시자"}`,
     url: `/app/posts/${post.id}`,
     tag: `post-${post.id}`,
   };

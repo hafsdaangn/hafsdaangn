@@ -1,6 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { navigateApp } from "./app-link";
 import { Camera, X, ArrowLeft, ArrowRight } from "lucide-react";
 import {
   categories,
@@ -20,7 +20,6 @@ export function PostForm({
   lost?: boolean;
 }) {
   const { base, mutate, upload, image } = useApp(),
-    router = useRouter(),
     fileRef = useRef<HTMLInputElement>(null);
   const [kind, setKind] = useState<Kind>(
       post?.kind ?? (lost ? "lost" : "giveaway"),
@@ -75,7 +74,7 @@ export function PostForm({
     setError("");
     try {
       const saved = await mutate<Post>("post.save", parsed.data);
-      router.push(`${base}/posts/${saved.id}`);
+      navigateApp(`${base}/posts/${saved.id}`);
     } catch (e) {
       setError((e as Error).message);
     } finally {

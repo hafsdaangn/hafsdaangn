@@ -184,15 +184,27 @@ test("keyword validation trims, deduplicates and limits saved subscriptions", ()
 });
 
 test("new post push links to the post with bounded content", () => {
-  const content = postPushContent({
+  const post = {
     id: "post",
     kind: "found",
     title: "지갑을 주웠어요",
     body: "🥕".repeat(2000),
-  } as Post);
+  } as Post;
+  const content = postPushContent(post, "김민수");
   assert.equal(content.url, "/app/posts/post");
   assert.equal(content.tag, "post-post");
-  assert.equal(content.title, "새 분실물 글 · 지갑을 주웠어요");
+  assert.equal(content.title, "새 분실물 글");
+  assert.equal(content.body, "지갑을 주웠어요 · 김민수");
+  const giveaway = postPushContent(
+    { ...post, kind: "giveaway", title: "수학 교재 나눔" },
+    " 이서연 ",
+  );
+  assert.equal(giveaway.title, "새 나눔 글");
+  assert.equal(giveaway.body, "수학 교재 나눔 · 이서연");
+  assert.equal(
+    postPushContent({ ...post, kind: "lost" }, "김민수").title,
+    "새 분실물 글",
+  );
   assert.ok(Buffer.byteLength(JSON.stringify(content)) < 4000);
 });
 

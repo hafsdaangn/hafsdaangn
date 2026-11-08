@@ -74,7 +74,9 @@ export function ChatNotificationSettings() {
         </button>
       </div>
       {enabled === null && !error && (
-        <p role="status">설정을 불러오고 있어요.</p>
+        <p className={styles.hint} role="status">
+          설정을 불러오고 있어요.
+        </p>
       )}
       {error && (
         <div className={styles.feedback} role="alert">

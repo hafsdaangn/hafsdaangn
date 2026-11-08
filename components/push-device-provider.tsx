@@ -15,7 +15,12 @@ import {
   serverPermission,
   subscribePermission,
 } from "@/lib/push-permission";
-import { connectPush, preparePush, type PreparedPush } from "@/lib/push-client";
+import {
+  connectPush,
+  preparePush,
+  PushSetupError,
+  type PreparedPush,
+} from "@/lib/push-client";
 
 type Status = "loading" | "ready" | "connected" | "unconfigured" | "error";
 type Model = {
@@ -135,13 +140,15 @@ export function PushDeviceProvider({
       await connectPush(ready);
       setStatus("connected");
       return true;
-    } catch {
+    } catch (e) {
       setError(
         Notification.permission === "denied"
           ? "알림이 차단됐어요. 기기 또는 브라우저의 알림 설정에서 허용해 주세요."
-          : Notification.permission === "default"
-            ? "아직 알림이 허용되지 않았어요. 원할 때 다시 허용해 주세요."
-            : "알림 설정을 적용하지 못했어요. 잠시 후 다시 시도해 주세요.",
+          : e instanceof PushSetupError
+            ? e.message
+            : Notification.permission === "default"
+              ? "아직 알림이 허용되지 않았어요. 원할 때 다시 허용해 주세요."
+              : "알림 설정을 적용하지 못했어요. 잠시 후 다시 시도해 주세요.",
       );
       setStatus(Notification.permission === "default" ? "ready" : "error");
       return false;

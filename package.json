@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test tests/domain.test.ts tests/database.test.ts tests/push.test.ts tests/external-browser.test.ts tests/pwa.test.ts",
+    "test": "tsx --test tests/domain.test.ts tests/database.test.ts tests/push.test.ts tests/external-browser.test.ts tests/pwa.test.ts tests/auth.test.ts",
     "pretest:e2e": "next build",
     "test:e2e": "playwright test",
     "test:pwa": "playwright test --config playwright.pwa.config.ts",

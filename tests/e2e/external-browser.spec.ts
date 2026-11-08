@@ -19,7 +19,7 @@ for (const device of ["Android 14", "iPhone; CPU iPhone OS 17_5_1"]) {
       viewport: { width: 320, height: 800 },
     });
 
-    test("Kakao keeps a manual handoff available if the native launch is blocked", async ({
+    test("Kakao shows the logo and external browser action instead of login", async ({
       page,
     }) => {
       await page.goto("/?from=kakao#login");
@@ -31,7 +31,11 @@ for (const device of ["Android 14", "iPhone; CPU iPhone OS 17_5_1"]) {
         .getByRole("link", { name: "외부 브라우저로 열기" })
         .getAttribute("href");
       expect(new URL(href!).searchParams.get("url")).toBe(page.url());
-      await expect(notice).toContainText("주소를 복사해");
+      await expect(notice).toContainText(
+        "카카오톡 내부 브라우저에서는 기능이 제한돼요. 외부 브라우저에서 이용해 주세요.",
+      );
+      await expect(page.getByRole("img", { name: "합스당근" })).toBeVisible();
+      await expect(page.locator('a[href="/auth/login"]')).toHaveCount(0);
       expect(
         await page.evaluate(
           () => document.documentElement.scrollWidth > innerWidth,

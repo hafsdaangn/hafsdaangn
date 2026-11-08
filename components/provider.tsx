@@ -25,7 +25,10 @@ type Model = {
   image: (id: string) => string;
   addPosts: (posts: Post[]) => void;
   loadMessages: (id: string, before?: number) => Promise<boolean>;
+  getFeed: (query: string) => FeedPage | undefined;
+  cacheFeed: (query: string, posts: Post[], hasMore: boolean) => void;
 };
+type FeedPage = { posts: Post[]; hasMore: boolean; fetchedAt: number };
 const Context = createContext<Model | null>(null);
 export const useApp = () => {
   const ctx = useContext(Context);
@@ -42,40 +45,59 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<Snapshot | null>(null),
     [error, setError] = useState("");
   const current = useRef<Snapshot | null>(null);
+  const refreshing = useRef<Promise<void> | null>(null);
+  // Memory belongs to this mounted, authenticated provider, never another user.
+  const feeds = useRef(new Map<string, FeedPage>());
+  const getFeed = useCallback((query: string) => feeds.current.get(query), []);
+  const cacheFeed = useCallback(
+    (query: string, posts: Post[], hasMore: boolean) => {
+      feeds.current.delete(query);
+      feeds.current.set(query, { posts, hasMore, fetchedAt: Date.now() });
+      if (feeds.current.size > 20)
+        feeds.current.delete(feeds.current.keys().next().value!);
+    },
+    [],
+  );
   const apply = useCallback((value: Snapshot) => {
     current.current = value;
     setState(value);
   }, []);
-  const refresh = useCallback(async () => {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 20000);
-    try {
-      const data = await api<Snapshot>("/api/data", {
-        signal: controller.signal,
-      });
-      const old = current.current;
-      apply({
-        ...data,
-        posts: [
-          ...data.posts,
-          ...(old?.posts ?? []).filter(
-            (p) => !data.posts.some((n) => n.id === p.id),
-          ),
-        ],
-        messages: mergeMessages(old?.messages ?? [], data.messages),
-      });
-      setError("");
-    } catch (e) {
-      setError(
-        controller.signal.aborted
-          ? "데이터 요청이 오래 걸리고 있어요. 연결을 확인한 뒤 다시 불러와 주세요."
-          : e instanceof Error
-            ? e.message
-            : "데이터를 불러오지 못했어요.",
-      );
-    } finally {
-      clearTimeout(timeout);
-    }
+  const refresh = useCallback(() => {
+    if (refreshing.current) return refreshing.current;
+    refreshing.current = (async () => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 20000);
+      try {
+        const data = await api<Snapshot>("/api/data", {
+          signal: controller.signal,
+        });
+        const old = current.current;
+        apply({
+          ...data,
+          posts: [
+            ...data.posts,
+            ...(old?.posts ?? []).filter(
+              (p) => !data.posts.some((n) => n.id === p.id),
+            ),
+          ],
+          messages: mergeMessages(old?.messages ?? [], data.messages),
+        });
+        setError("");
+      } catch (e) {
+        setError(
+          controller.signal.aborted
+            ? "데이터 요청이 오래 걸리고 있어요. 연결을 확인한 뒤 다시 불러와 주세요."
+            : e instanceof Error
+              ? e.message
+              : "데이터를 불러오지 못했어요.",
+        );
+      } finally {
+        clearTimeout(timeout);
+      }
+    })().finally(() => {
+      refreshing.current = null;
+    });
+    return refreshing.current;
   }, [apply]);
   useEffect(() => {
     void refresh();
@@ -163,7 +185,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
           posts: current.current.posts.filter((p) => p.id !== id),
         });
       }
-      await refresh();
+      if (op.startsWith("post.")) feeds.current.clear();
+      // The mutation result is already applied. Do not hold navigation or the
+      // composer hostage to an additional full snapshot request.
+      if (refreshing.current) void refreshing.current.then(refresh);
+      else void refresh();
       return result;
     },
     [refresh, apply],
@@ -240,6 +266,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         image: (id) => `/api/media/${id}`,
         addPosts,
         loadMessages,
+        getFeed,
+        cacheFeed,
       }}
     >
       {children}

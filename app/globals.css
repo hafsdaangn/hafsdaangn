@@ -1167,6 +1167,22 @@ input[type="checkbox"] {
   padding: 12px 24px 20px;
   background: var(--color-subtle);
   overscroll-behavior: contain;
+  overflow-anchor: none;
+}
+.message-stack {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 100%;
+}
+.message-stack > * {
+  flex-shrink: 0;
+}
+.chat-header,
+.chat-product,
+.composer,
+.attachment-preview {
+  flex-shrink: 0;
 }
 .chat-date {
   text-align: center;
@@ -1178,7 +1194,7 @@ input[type="checkbox"] {
   display: flex;
   align-items: flex-end;
   gap: 7px;
-  margin: 18px 0;
+  margin: 4px 0;
 }
 .message.mine {
   flex-direction: row-reverse;
@@ -1365,7 +1381,7 @@ input[type="checkbox"] {
   background: var(--color-accent);
   border: 1px solid transparent;
   width: 100%;
-  font-size: 14px;
+  font-size: 16px;
   min-height: 54px;
 }
 .google-button:hover {
@@ -1545,7 +1561,9 @@ input[type="checkbox"] {
   }
   .detail-photo {
     border-radius: 0;
+    width: min(100%, 440px);
     max-height: 440px;
+    margin-inline: auto;
   }
   .detail-info {
     padding: 20px;
@@ -1636,9 +1654,21 @@ input[type="checkbox"] {
   .has-room .chat-sidebar {
     display: none;
   }
+  html.chat-room-open,
+  html.chat-room-open body {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+  .chat-layout.has-room {
+    position: fixed;
+    top: var(--chat-top, 0px);
+    left: 0;
+    height: var(--chat-height, 100dvh);
+    overflow: hidden;
+  }
   .has-room .chat-main {
     display: flex;
-    height: 100dvh;
+    height: 100%;
   }
   .chat-header {
     padding: 8px 12px;
@@ -1657,6 +1687,9 @@ input[type="checkbox"] {
   .composer {
     padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
     gap: 8px;
+  }
+  .chat-layout[data-keyboard="true"] .composer {
+    padding-bottom: 12px;
   }
   .composer input {
     font-size: 16px;
@@ -1720,7 +1753,7 @@ input[type="checkbox"] {
     margin-top: 30px;
   }
   .google-button {
-    font-size: 13px;
+    font-size: 15px;
     padding: 12px;
   }
   .skeleton-list {

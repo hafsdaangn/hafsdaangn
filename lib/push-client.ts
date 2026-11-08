@@ -8,7 +8,10 @@ export type PreparedPush = {
   subscription: PushSubscription | null;
   config: PushConfig;
   key: Uint8Array<ArrayBuffer> | null;
+  subscribing?: Promise<PushSubscription>;
 };
+
+export class PushSetupError extends Error {}
 
 export async function pushRequest<T>(
   method: string,
@@ -82,15 +85,41 @@ export async function connectPush(
 ): Promise<PushSubscription> {
   if (!prepared.config.configured || !prepared.key)
     throw new Error("알림 기능을 준비하고 있어요.");
-  const subscription =
-    prepared.subscription ||
-    (await prepared.registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: prepared.key,
-    }));
+  if (!prepared.subscription && !prepared.subscribing) {
+    // Start synchronously in the click handler; retain the pending operation
+    // so a delayed device response cannot create a second subscription.
+    prepared.subscribing = prepared.registration.pushManager
+      .subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: prepared.key,
+      })
+      .then((subscription) => {
+        prepared.subscription = subscription;
+        return subscription;
+      })
+      .finally(() => {
+        prepared.subscribing = undefined;
+      });
+  }
+  let subscription: PushSubscription;
+  try {
+    subscription =
+      prepared.subscription ||
+      (await withTimeout(prepared.subscribing!, 30000));
+  } catch {
+    throw new PushSetupError(
+      "기기의 알림 등록을 완료하지 못했어요. 연결을 확인하고 다시 시도해 주세요. 계속 지연되면 앱을 닫았다가 다시 열어 주세요.",
+    );
+  }
   // Retain a created subscription even if the subsequent server save fails.
   prepared.subscription = subscription;
-  await pushRequest("POST", subscription.toJSON());
+  try {
+    await withTimeout(pushRequest("POST", subscription.toJSON()));
+  } catch {
+    throw new PushSetupError(
+      "기기에서 알림은 허용됐지만 서버에 설정을 저장하지 못했어요. 다시 시도해 주세요.",
+    );
+  }
   return subscription;
 }
 
@@ -121,4 +150,10 @@ export function snoozed(
 }
 export function snooze(userId: string, stage: "install" | "push") {
   writePushChoice(snoozeKey(userId, stage), String(Date.now() + 7 * 86400000));
+}
+
+export const iosInstallGuideSeen = (userId: string) =>
+  readPushChoice(`ios-install-guide:v1:${userId}`) === "seen";
+export function markIosInstallGuideSeen(userId: string) {
+  writePushChoice(`ios-install-guide:v1:${userId}`, "seen");
 }

@@ -30,3 +30,7 @@ source/presentation-spec.json: logo-design 스킬 presentation_board.py용 사�
 qa/: 크기·색상·경로 검사 결과와 축소 미리보기.
 
 생성된 웹 아이콘은 패키지로만 제공하며 현재 서비스 코드는 변경하지 않았습니다.
+
+## Android notification badge
+
+web/notification-badge.png: 96 x 96 px, white symbol on a transparent background. Rendered from vector/hafsdaangn-symbol-white.svg with aspect ratio preserved and centered. Runtime copy: public/icons/notification-badge.png; used by the service worker notification badge option.

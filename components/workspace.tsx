@@ -1,5 +1,5 @@
 "use client";
-import Link from "next/link";
+import Link from "./app-link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Home, PackageSearch, MessageCircle, UserRound } from "lucide-react";
 import { isMarket, unreadCount } from "@/lib/domain";
@@ -13,6 +13,7 @@ import { ProfilePage } from "./profile";
 import { PushSettings } from "./push-settings";
 import { PushPermissionDialog } from "./push-permission-dialog";
 import { PushDeviceProvider } from "./push-device-provider";
+import { InstallEntry } from "./install-entry";
 export function Workspace() {
   const { state } = useApp();
   return (
@@ -106,6 +107,7 @@ function WorkspaceContent() {
               </Link>
             ))}
           </nav>
+          <InstallEntry />
         </div>
       </header>
       <main id="content">
@@ -145,9 +147,9 @@ function WorkspaceContent() {
               </div>
             )}
             {section === "market" ? (
-              <Feed />
+              <Feed key="market" />
             ) : section === "lost" ? (
-              <Feed lost />
+              <Feed lost key="lost" />
             ) : section === "posts" ? (
               <PostDetail
                 id={path[1]}

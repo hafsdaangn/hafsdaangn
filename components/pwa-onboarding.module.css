@@ -1,4 +1,5 @@
 .dialog {
+  text-align: left;
   overflow-y: auto;
   height: fit-content;
   padding: 24px;
@@ -49,17 +50,39 @@
 }
 
 .entry {
-  max-width: 360px;
-  margin: 20px auto 0;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.landingEntry {
+  margin-top: 12px;
+}
+.landingEntry .actions {
+  margin: 0;
+}
+.landingEntry button {
+  width: 100%;
+  min-height: 46px;
+  color: var(--color-secondary);
+  background: var(--color-paper);
+  border: 1px solid var(--color-secondary);
+}
+.landingEntry button:hover:not(:disabled) {
+  background: var(--color-secondary-soft);
+}
+.entry .actions {
+  margin: 0;
+}
+.entry button {
+  min-height: 38px;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
   font-size: 14px;
-  text-align: left;
+  line-height: 20px;
 }
-.entry summary {
-  color: var(--color-muted);
-  cursor: pointer;
-  text-align: center;
-}
-.entry summary:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 4px;
+@media (max-width: 768px) {
+  .entry button {
+    min-height: 34px;
+    padding: 6px 12px;
+    font-size: 13px;
+  }
 }

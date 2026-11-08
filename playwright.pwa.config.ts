@@ -5,6 +5,8 @@ import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "./tests/e2e",
   testMatch: [
+    "app-performance.spec.ts",
+    "chat-composer.spec.ts",
     "pwa-onboarding.spec.ts",
     "post-notifications.spec.ts",
     "select.spec.ts",

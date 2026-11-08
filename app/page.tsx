@@ -35,13 +35,13 @@ export default async function Landing({
                 ? "Google 계정으로 시작하기"
                 : "학교 Google 계정으로 시작하기"}
             </a>
+            <InstallEntry landing />
             {error && (
               <p className="error-notice" role="alert">
                 {errors[error] ?? errors.login}
               </p>
             )}
           </div>
-          <InstallEntry />
         </div>
       </main>
     </div>

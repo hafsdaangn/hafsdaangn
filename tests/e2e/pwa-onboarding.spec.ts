@@ -18,6 +18,17 @@ test.beforeAll(async () => {
       {
         name: "fixture-context",
         setup(builder) {
+          builder.onResolve({ filter: /^next\/navigation$/ }, () => ({
+            path: "navigation",
+            namespace: "fixture-navigation",
+          }));
+          builder.onLoad(
+            { filter: /.*/, namespace: "fixture-navigation" },
+            () => ({
+              contents:
+                'export const usePathname = () => location.search.includes("landing") ? "/" : "/app";',
+            }),
+          );
           builder.onResolve({ filter: /^\.\/provider$/ }, () => ({
             path: "context",
             namespace: "fixture",
@@ -51,6 +62,7 @@ test.beforeAll(async () => {
 });
 
 type Options = {
+  desktop?: boolean;
   ios?: boolean;
   standalone?: boolean;
   denied?: boolean;
@@ -60,12 +72,14 @@ type Options = {
   inApp?: boolean;
   unconfigured?: boolean;
   holdPrepare?: boolean;
+  holdSubscribe?: boolean;
+  holdSave?: boolean;
   preferencesFail?: boolean;
 };
 async function openFixture(
   page: Page,
   options: Options = {},
-  settings = false,
+  settings: boolean | "install-entry" | "landing" = false,
 ) {
   page.on("pageerror", (error) => console.error(error.message));
   await page.addInitScript((options) => {
@@ -88,7 +102,9 @@ async function openFixture(
     Object.defineProperty(navigator, "userAgent", {
       value: options.ios
         ? "iPhone OS 26_0"
-        : `Android 14${options.inApp ? " KAKAOTALK" : ""}`,
+        : options.desktop
+          ? "Windows NT 10.0 Chrome"
+          : `Android 14${options.inApp ? " KAKAOTALK" : ""}`,
     });
     Object.defineProperty(navigator, "platform", {
       value: options.ios ? "iPhone" : "Linux",
@@ -130,6 +146,10 @@ async function openFixture(
         subscribe: async () => {
           state.subscriptions++;
           state.permission = "granted";
+          if (options.holdSubscribe)
+            await new Promise<void>((resolve) =>
+              Object.assign(window, { releasePushSubscription: resolve }),
+            );
           subscription = makeSubscription();
           return subscription;
         },
@@ -175,6 +195,10 @@ async function openFixture(
       }
       if (init?.method === "POST") {
         state.posts++;
+        if (options.holdSave && state.posts === 1)
+          await new Promise<void>((resolve) =>
+            Object.assign(window, { releasePushSave: resolve }),
+          );
         if (state.failSave)
           return new Response(JSON.stringify({ error: "server unavailable" }), {
             status: 503,
@@ -224,41 +248,114 @@ async function openFixture(
   await page.route("**/__pwa-style.css", (route) =>
     route.fulfill({ contentType: "text/css", body: css }),
   );
-  await page.goto(`/__pwa-fixture${settings ? "?settings" : ""}`);
+  await page.goto(
+    `/__pwa-fixture${settings === "landing" ? "?install-entry&landing" : settings === "install-entry" ? "?install-entry" : settings ? "?settings" : ""}`,
+  );
 }
 
-test("iOS browser shows manual steps without asking permission; stages snooze independently", async ({
+test("website install button stays hidden until a native install event is available", async ({
   page,
 }) => {
+  await openFixture(page, { desktop: true }, "install-entry");
+  const button = page.getByRole("button", { name: "앱 설치", exact: true });
+  await expect(button).toHaveCount(0);
+  await page.evaluate(() =>
+    (window as unknown as { sendInstallEvent: () => void }).sendInstallEvent(),
+  );
+  await button.click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect(
+    await page.evaluate(
+      () =>
+        (window as unknown as { pwaTest: { prompts: number } }).pwaTest.prompts,
+    ),
+  ).toBe(1);
+  await expect(button).toHaveCount(0);
+});
+
+test("Android login landing opens the native install prompt from its install button", async ({
+  page,
+}) => {
+  await openFixture(page, {}, "landing");
+  await page.evaluate(() =>
+    (window as unknown as { sendInstallEvent: () => void }).sendInstallEvent(),
+  );
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.getByRole("button", { name: "앱 설치", exact: true }).click();
+  expect(
+    await page.evaluate(
+      () =>
+        (window as unknown as { pwaTest: { prompts: number } }).pwaTest.prompts,
+    ),
+  ).toBe(1);
+});
+
+test("iOS login landing opens instructions only when installation is clicked", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  await openFixture(page, { ios: true }, "landing");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.getByRole("button", { name: "앱 설치", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText("공유");
+  await expect(dialog).toContainText("홈 화면에 추가");
+  await expect(dialog.getByRole("listitem")).toHaveCount(4);
+  for (const element of await dialog.locator("h2, p, li").all()) {
+    expect(await element.evaluate((el) => getComputedStyle(el).textAlign)).toBe(
+      "left",
+    );
+  }
+  await dialog.getByRole("button", { name: "확인" }).click();
+  await expect(dialog).toHaveCount(0);
+});
+
+test("iOS header installation button opens and reopens the manual guide", async ({
+  page,
+}) => {
+  await openFixture(page, { ios: true }, "install-entry");
+  const button = page.getByRole("button", { name: "앱 설치", exact: true });
+  await expect(button).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await button.click();
+  await expect(page.getByRole("dialog")).toContainText("홈 화면에 추가");
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await button.click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.getByRole("dialog").getByRole("button", { name: "확인" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
+test("iOS shows manual home screen instructions after login without invoking installation or push", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 640 });
   await openFixture(page, { ios: true });
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole("button")).toHaveCount(2);
-  await expect(dialog).not.toContainText("알림");
-  await dialog.getByRole("button", { name: "앱 설치", exact: true }).click();
-  await expect(dialog).toContainText("웹 앱으로 열기");
+  await expect(dialog).toContainText("Safari");
+  await expect(dialog).toContainText("공유");
+  await expect(dialog).toContainText("홈 화면에 추가");
   await expect(dialog).toContainText("합스당근 아이콘");
-  await expect(dialog.getByRole("button")).toHaveCount(2);
-  await expect(dialog).not.toContainText("알림");
-  for (const width of [320, 375, 414, 768]) {
-    await page.setViewportSize({ width, height: 850 });
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth > innerWidth,
-      ),
-    ).toBe(false);
-  }
-  await page.setViewportSize({ width: 375, height: 850 });
-  await page.screenshot({
-    path: "output/pwa-onboarding/ios-install.png",
-    fullPage: true,
+  await expect(
+    dialog.getByRole("button", { name: "앱 설치", exact: true }),
+  ).toHaveCount(0);
+  await expect(dialog.getByRole("button")).toHaveCount(1);
+  await dialog.getByRole("button", { name: "확인" }).click();
+  await page.addInitScript(() => {
+    const now = Date.now();
+    Date.now = () => now + 8 * 86400000;
   });
-  await dialog.getByRole("button", { name: "나중에", exact: true }).click();
-  expect(
-    await page.evaluate(() =>
-      localStorage.getItem("push-onboarding:v2:test-user:push"),
-    ),
-  ).toBeNull();
+  await page.reload();
+  await expect(page.getByRole("button", { name: "설정 열기" })).toBeVisible();
+  await expect(dialog).toHaveCount(0);
+  await page.getByRole("button", { name: "설정 열기" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "앱 설치", exact: true }),
+  ).toHaveCount(0);
   expect(
     await page.evaluate(
       () =>
@@ -266,12 +363,19 @@ test("iOS browser shows manual steps without asking permission; stages snooze in
           .subscriptions,
     ),
   ).toBe(0);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth > innerWidth,
+    ),
+  ).toBe(false);
 });
-
 test("Android install dialog only offers installation and closes without requesting notifications", async ({
   page,
 }) => {
-  await openFixture(page);
+  await openFixture(page, { holdPrepare: true });
+  await page.evaluate(() =>
+    (window as unknown as { sendInstallEvent: () => void }).sendInstallEvent(),
+  );
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole("button")).toHaveCount(2);
@@ -305,7 +409,7 @@ test("installed iOS retries a failed server save without creating a second subsc
   });
   await dialog.getByRole("button", { name: "알림 허용" }).click();
   await expect(dialog.getByRole("alert")).toContainText(
-    "알림 설정을 적용하지 못했어요",
+    "서버에 설정을 저장하지 못했어요",
   );
   await page.evaluate(() => {
     (window as unknown as { pwaTest: { failSave: boolean } }).pwaTest.failSave =
@@ -325,11 +429,59 @@ test("installed iOS retries a failed server save without creating a second subsc
   ).toMatchObject({ subscriptions: 1, posts: 2 });
 });
 
+for (const stage of ["subscribe", "save"] as const) {
+  test(`iOS stalled ${stage} exits busy state and can recover`, async ({
+    page,
+  }) => {
+    await openFixture(page, {
+      ios: true,
+      standalone: true,
+      holdSubscribe: stage === "subscribe",
+      holdSave: stage === "save",
+    });
+    const dialog = page.getByRole("dialog");
+    await expect(
+      dialog.getByRole("button", { name: "알림 허용" }),
+    ).toBeEnabled();
+    await page.clock.install();
+    await dialog.getByRole("button", { name: "알림 허용" }).click();
+    await expect(
+      dialog.getByRole("button", { name: "설정 중" }),
+    ).toBeDisabled();
+    await page.clock.fastForward(stage === "subscribe" ? 31000 : 16000);
+    await expect(dialog.getByRole("alert")).toContainText(
+      stage === "subscribe"
+        ? "기기의 알림 등록을 완료하지 못했어요"
+        : "서버에 설정을 저장하지 못했어요",
+    );
+    await expect(dialog.getByRole("button", { name: "나중에" })).toBeEnabled();
+    await page.evaluate((stage) => {
+      const control = window as unknown as {
+        releasePushSubscription: () => void;
+        releasePushSave: () => void;
+      };
+      if (stage === "subscribe") control.releasePushSubscription();
+      else control.releasePushSave();
+    }, stage);
+    await dialog.getByRole("button", { name: "다시 시도" }).click();
+    await expect(dialog).toContainText("알림을 설정했어요");
+    expect(
+      await page.evaluate(
+        () =>
+          (window as unknown as { pwaTest: { subscriptions: number } }).pwaTest
+            .subscriptions,
+      ),
+    ).toBe(1);
+  });
+}
+
 test("granted permission automatically registers and ignores the old device-off choice", async ({
   page,
 }) => {
   await openFixture(page, { standalone: true, off: true, granted: true }, true);
-  await expect(page.getByText("허용됨", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("이 기기에서 알림이 허용되어 있어요.", { exact: true }),
+  ).toBeVisible();
   await expect
     .poll(() =>
       page.evaluate(
@@ -384,6 +536,9 @@ test("postponing Android installation does not open notification settings when p
   page,
 }) => {
   await openFixture(page, { holdPrepare: true });
+  await page.evaluate(() =>
+    (window as unknown as { sendInstallEvent: () => void }).sendInstallEvent(),
+  );
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
   await dialog.getByRole("button", { name: "나중에", exact: true }).click();

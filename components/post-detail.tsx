@@ -1,7 +1,7 @@
 "use client";
-import Link from "next/link";
+import Link from "./app-link";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { navigateApp } from "./app-link";
 import {
   MapPin,
   PackageOpen,
@@ -35,7 +35,6 @@ export function PostDetail({
   edit?: boolean;
 }) {
   const { state, base, mutate, addPosts } = useApp(),
-    router = useRouter(),
     [index, setIndex] = useState(0),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
@@ -105,7 +104,7 @@ export function PostDetail({
   }
   async function contact() {
     const c = await action("conversation.create", { post_id: id });
-    if (c) router.push(`${base}/chats/${c.id}`);
+    if (c) navigateApp(`${base}/chats/${c.id}`);
   }
   const existing = state.conversations.find(
     (c) =>
@@ -257,7 +256,7 @@ export function PostDetail({
                       disabled={busy}
                       onClick={async () => {
                         const result = await action("post.delete", { id });
-                        if (result) router.push(market ? base : `${base}/lost`);
+                        if (result) navigateApp(market ? base : `${base}/lost`);
                       }}
                     >
                       삭제하기
@@ -277,7 +276,7 @@ export function PostDetail({
                 disabled={busy || (post.status === "completed" && !existing)}
                 onClick={() =>
                   existing
-                    ? router.push(`${base}/chats/${existing.id}`)
+                    ? navigateApp(`${base}/chats/${existing.id}`)
                     : void contact()
                 }
               >
@@ -287,12 +286,8 @@ export function PostDetail({
                   "대화 이어가기"
                 ) : post.status === "completed" ? (
                   "완료된 게시글"
-                ) : market ? (
-                  "채팅하기"
-                ) : post.kind === "lost" ? (
-                  "관련 정보 보내기"
                 ) : (
-                  "제 물건 같아요"
+                  "채팅하기"
                 )}
               </button>
             </div>

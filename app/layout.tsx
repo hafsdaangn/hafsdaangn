@@ -23,7 +23,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#FF6800",
+  themeColor: "#ffffff",
   colorScheme: "light",
 };
 
@@ -32,8 +32,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="ko">
       <body>
         <PwaProvider>
-          <ExternalBrowser />
-          {children}
+          <ExternalBrowser>{children}</ExternalBrowser>
         </PwaProvider>
       </body>
     </html>

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
 import { useSearchParams, usePathname } from "next/navigation";
-import { ArrowDown, X } from "lucide-react";
+import { X } from "lucide-react";
 import { categories, type Post } from "@/lib/domain";
 import { useApp } from "./provider";
 import {
@@ -14,18 +14,27 @@ import {
   WriteButton,
 } from "./ui";
 export function Feed({ lost = false }: { lost?: boolean }) {
-  const { state, addPosts } = useApp(),
+  const { state, addPosts, getFeed, cacheFeed } = useApp(),
     params = useSearchParams(),
     path = usePathname();
   const q = params.get("q") ?? "",
     category = params.get("category") ?? "전체",
     kind = params.get("kind") ?? "all",
     available = params.get("available") !== "false";
+  const query = new URLSearchParams({
+    type: lost ? "lost" : "market",
+    q,
+    available: String(available),
+  });
+  if (category !== "전체") query.set("category", category);
+  if (lost && kind !== "all") query.set("kind", kind);
+  const queryString = query.toString();
+  const cached = getFeed(queryString);
   const [search, setSearch] = useState(q),
-    [busy, setBusy] = useState(true),
+    [busy, setBusy] = useState(!cached),
     [error, setError] = useState(""),
-    [remote, setRemote] = useState<Post[]>([]),
-    [more, setMore] = useState(false);
+    [remote, setRemote] = useState<Post[]>(cached?.posts ?? []),
+    [more, setMore] = useState(cached?.hasMore ?? false);
   const version = useRef(0),
     latest = useRef(params.toString());
   useEffect(() => {
@@ -61,26 +70,28 @@ export function Feed({ lost = false }: { lost?: boolean }) {
   useEffect(() => {
     queueMicrotask(() => setSearch(q));
   }, [q]);
-  const query = new URLSearchParams({
-    type: lost ? "lost" : "market",
-    q,
-    available: String(available),
-  });
-  if (category !== "전체") query.set("category", category);
-  if (lost && kind !== "all") query.set("kind", kind);
-  const queryString = query.toString();
   useEffect(() => {
     const controller = new AbortController(),
       n = ++version.current;
+    const cached = getFeed(queryString);
+    const fresh = cached && Date.now() - cached.fetchedAt < 15000;
     queueMicrotask(() => {
-      setBusy(true);
+      if (n !== version.current) return;
+      setRemote(cached?.posts ?? []);
+      setMore(cached?.hasMore ?? false);
+      setBusy(!fresh);
       setError("");
     });
+    if (fresh)
+      return () => {
+        version.current = n + 1;
+      };
     fetch(`/api/posts?${queryString}`, { signal: controller.signal })
       .then(async (r) => {
         const data = await r.json();
         if (!r.ok) throw new Error(data.error);
         if (n === version.current) {
+          cacheFeed(queryString, data.posts, data.hasMore);
           setRemote(data.posts);
           setMore(data.hasMore);
         }
@@ -96,7 +107,7 @@ export function Feed({ lost = false }: { lost?: boolean }) {
       controller.abort();
       version.current = n + 1;
     };
-  }, [queryString]);
+  }, [queryString, getFeed, cacheFeed]);
   // The feed can finish before the rest of the app's initial data.
   const ready = Boolean(state);
   useEffect(() => {
@@ -115,7 +126,9 @@ export function Feed({ lost = false }: { lost?: boolean }) {
         data = await r.json();
       if (!r.ok) throw new Error(data.error);
       if (n !== version.current) return;
-      setRemote((old) => [...old, ...data.posts]);
+      const posts = [...remote, ...data.posts];
+      cacheFeed(queryString, posts, data.hasMore);
+      setRemote(posts);
       setMore(data.hasMore);
     } catch (e) {
       if (n === version.current) setError((e as Error).message);
@@ -165,9 +178,6 @@ export function Feed({ lost = false }: { lost?: boolean }) {
             {lost ? "찾는 중만" : "나눔 가능한 글"}
           </label>
         </div>
-        <span className="sort-label">
-          최신순 <ArrowDown size={13} />
-        </span>
       </div>
       <ErrorNotice message={error} />
       {busy && !posts.length ? (
@@ -185,11 +195,7 @@ export function Feed({ lost = false }: { lost?: boolean }) {
       ) : (
         <Empty
           title={q ? "검색 결과가 없어요" : "아직 올라온 글이 없어요"}
-          body={
-            q
-              ? "다른 검색어나 필터로 찾아보세요."
-              : ""
-          }
+          body={q ? "다른 검색어나 필터로 찾아보세요." : ""}
           action={
             q && (
               <button

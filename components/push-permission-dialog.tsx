@@ -2,7 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Bell, Download } from "lucide-react";
-import { snooze, snoozed } from "@/lib/push-client";
+import {
+  snooze,
+  snoozed,
+  iosInstallGuideSeen,
+  markIosInstallGuideSeen,
+} from "@/lib/push-client";
 import { useApp } from "./provider";
 import { useInstall } from "./pwa-provider";
 import { usePushDevice } from "./push-device-provider";
@@ -36,15 +41,17 @@ function PermissionPrompt({ userId }: { userId: string }) {
       ended.current ||
       !install.ready ||
       install.inApp ||
-      !install.secure ||
-      install.oldIOS
+      !install.secure
     )
       return;
     const addApp =
       install.mobile &&
+      (install.ios || Boolean(install.prompt)) &&
       !install.standalone &&
       !install.installed &&
-      !snoozed(userId, "install");
+      (install.ios
+        ? !iosInstallGuideSeen(userId)
+        : !snoozed(userId, "install"));
     const next = addApp
       ? "install"
       : canPush && !snoozed(userId, "push")
@@ -53,6 +60,7 @@ function PermissionPrompt({ userId }: { userId: string }) {
     if (!next) return;
     // Do not interrupt someone already typing while device checks finish.
     if (
+      !install.ios &&
       document.activeElement?.matches("input, textarea, [contenteditable=true]")
     )
       return;
@@ -69,12 +77,15 @@ function PermissionPrompt({ userId }: { userId: string }) {
     if (!step) return;
     const element = dialog.current;
     element?.showModal();
+    if (step === "install" && install.ios && element?.open)
+      markIosInstallGuideSeen(userId);
     return () => element?.close();
-  }, [step]);
+  }, [step, install.ios, userId]);
 
   function close() {
     if (push.busy) return;
-    if (step === "install" || step === "push") snooze(userId, step);
+    if (step === "push" || (step === "install" && !install.ios))
+      snooze(userId, step);
     ended.current = true;
     dialog.current?.close();
     setStep(null);
@@ -117,7 +128,7 @@ function PermissionPrompt({ userId }: { userId: string }) {
         {adding
           ? "앱으로 추가하면 홈 화면의 아이콘으로 합스당근에 바로 접속할 수 있어요."
           : step === "success"
-            ? "알림 설정에 따라 새 채팅과 새 글을 알려드려요. 소리와 알림 표시는 기기 설정에 따라 달라요."
+            ? "알림 설정에 따라 새 채팅과 새 글을 알려드려요."
             : "나눔·분실물의 새 글과 새 채팅 알림을 받기 위해 기기에서 알림을 허용해주세요. 설정은 나중에도 내 정보 → 알림 설정에서 변경할 수 있어요. "}
       </p>
       {adding && <InstallActions dialog onLater={close} onInstalled={close} />}

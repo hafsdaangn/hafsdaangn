@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { AppProvider } from "@/components/provider";
-import { member } from "@/lib/auth";
+import { member, memberLoginPath } from "@/lib/auth";
 import { configured } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 export default async function PlatformLayout({
@@ -11,8 +11,8 @@ export default async function PlatformLayout({
   if (!configured()) redirect("/?error=setup");
   try {
     await member();
-  } catch {
-    redirect("/?error=school");
+  } catch (error) {
+    redirect(memberLoginPath(error));
   }
   return <AppProvider>{children}</AppProvider>;
 }

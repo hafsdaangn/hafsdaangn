@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "./app-link";
 import { ArrowLeft, Bell } from "lucide-react";
 import { useApp } from "./provider";
 import { PageHeading } from "./ui";
@@ -52,7 +52,7 @@ export function PushSettings() {
               <h2 id="notification-permission-title">알림 허용</h2>
             </div>
           </div>
-          <p>{message}</p>
+          <p className={styles.hint}>{message}</p>
           {push.error && (
             <div className={styles.feedback} role="alert">
               <p>{push.error}</p>
