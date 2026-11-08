@@ -9,11 +9,14 @@ import {
   type ReactNode,
 } from "react";
 import { browserClient } from "@/lib/supabase/browser";
+import type { RealtimePostgresInsertPayload } from "@supabase/supabase-js";
 import {
+  unreadCount,
   type Snapshot,
   type Message,
   type Post,
   type Conversation,
+  type Profile,
 } from "@/lib/domain";
 type Model = {
   state: Snapshot | null;
@@ -22,13 +25,24 @@ type Model = {
   refresh: () => Promise<void>;
   mutate: <T>(op: string, payload: Record<string, unknown>) => Promise<T>;
   upload: (file: File, room?: string) => Promise<string>;
-  image: (id: string) => string;
-  addPosts: (posts: Post[]) => void;
+  image: (id: string, width?: number) => string;
+  addPosts: (posts: Post[], profiles?: Profile[]) => void;
   loadMessages: (id: string, before?: number) => Promise<boolean>;
   getFeed: (query: string) => FeedPage | undefined;
-  cacheFeed: (query: string, posts: Post[], hasMore: boolean) => void;
+  cacheFeed: (
+    query: string,
+    posts: Post[],
+    hasMore: boolean,
+    profiles?: Profile[],
+  ) => void;
+  loadPosts: (query: string) => Promise<FeedPage>;
 };
-type FeedPage = { posts: Post[]; hasMore: boolean; fetchedAt: number };
+type FeedPage = {
+  posts: Post[];
+  profiles?: Profile[];
+  hasMore: boolean;
+  fetchedAt: number;
+};
 const Context = createContext<Model | null>(null);
 export const useApp = () => {
   const ctx = useContext(Context);
@@ -36,7 +50,11 @@ export const useApp = () => {
   return ctx;
 };
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, { ...init, cache: "no-store" });
+  const res = await fetch(url, {
+    ...init,
+    signal: init?.signal ?? AbortSignal.timeout(15000),
+    cache: "no-store",
+  });
   const value = await res.json();
   if (!res.ok) throw new Error(value.error ?? "요청을 처리하지 못했어요.");
   return value;
@@ -48,11 +66,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const refreshing = useRef<Promise<void> | null>(null);
   // Memory belongs to this mounted, authenticated provider, never another user.
   const feeds = useRef(new Map<string, FeedPage>());
+  const postRequests = useRef(new Map<string, Promise<FeedPage>>());
+  const feedVersion = useRef(0);
+  const mutationVersion = useRef(0);
+  const messagePages = useRef(
+    new Map<string, { hasMore: boolean; fetchedAt: number }>(),
+  );
+  const messageRequests = useRef(new Map<string, Promise<boolean>>());
   const getFeed = useCallback((query: string) => feeds.current.get(query), []);
   const cacheFeed = useCallback(
-    (query: string, posts: Post[], hasMore: boolean) => {
+    (
+      query: string,
+      posts: Post[],
+      hasMore: boolean,
+      profiles: Profile[] = [],
+    ) => {
       feeds.current.delete(query);
-      feeds.current.set(query, { posts, hasMore, fetchedAt: Date.now() });
+      feeds.current.set(query, {
+        posts,
+        profiles,
+        hasMore,
+        fetchedAt: Date.now(),
+      });
       if (feeds.current.size > 20)
         feeds.current.delete(feeds.current.keys().next().value!);
     },
@@ -62,23 +97,72 @@ export function AppProvider({ children }: { children: ReactNode }) {
     current.current = value;
     setState(value);
   }, []);
+  const loadPosts = useCallback(
+    function requestPosts(query: string): Promise<FeedPage> {
+      const cached = feeds.current.get(query);
+      if (cached && Date.now() - cached.fetchedAt < 15000)
+        return Promise.resolve(cached);
+      const pending = postRequests.current.get(query);
+      if (pending) return pending;
+      const version = feedVersion.current;
+      const request = api<FeedPage>(`/api/posts?${query}`)
+        .then((data) => {
+          if (version !== feedVersion.current) return requestPosts(query);
+          const page = { ...data, fetchedAt: Date.now() };
+          cacheFeed(query, page.posts, page.hasMore, page.profiles);
+          return page;
+        })
+        .finally(() => {
+          if (postRequests.current.get(query) === request)
+            postRequests.current.delete(query);
+        });
+      postRequests.current.set(query, request);
+      return request;
+    },
+    [cacheFeed],
+  );
   const refresh = useCallback(() => {
     if (refreshing.current) return refreshing.current;
+    const version = mutationVersion.current;
     refreshing.current = (async () => {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 20000);
       try {
-        const data = await api<Snapshot>("/api/data", {
-          signal: controller.signal,
-        });
+        const activeRoom = window.location.pathname.match(
+          /^\/app\/chats\/([0-9a-f-]{36})$/,
+        )?.[1];
+        const data = await api<Snapshot>(
+          `/api/data${activeRoom ? `?conversation=${activeRoom}` : ""}`,
+          {
+            signal: controller.signal,
+          },
+        );
+        // A response started before a successful mutation must not undo its
+        // unread count, preview, or post status while reconciling in the back.
+        if (version !== mutationVersion.current) return;
         const old = current.current;
+        const cached = [...feeds.current.values()];
         apply({
           ...data,
+          profiles: [
+            ...new Map(
+              [
+                ...(old?.profiles ?? []),
+                ...cached.flatMap((page) => page.profiles ?? []),
+                ...data.profiles,
+              ].map((p) => [p.id, p]),
+            ).values(),
+          ],
           posts: [
             ...data.posts,
-            ...(old?.posts ?? []).filter(
-              (p) => !data.posts.some((n) => n.id === p.id),
-            ),
+            ...[
+              ...new Map(
+                [
+                  ...cached.flatMap((page) => page.posts),
+                  ...(old?.posts ?? []),
+                ].map((p) => [p.id, p]),
+              ).values(),
+            ].filter((p) => !data.posts.some((n) => n.id === p.id)),
           ],
           messages: mergeMessages(old?.messages ?? [], data.messages),
         });
@@ -102,20 +186,54 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+  const viewerId = state?.viewer.id;
   useEffect(() => {
     const client = browserClient();
     if (!client) return;
     let timer: ReturnType<typeof setTimeout>;
     const sync = () => {
       clearTimeout(timer);
-      timer = setTimeout(() => void refresh(), 180);
+      timer = setTimeout(() => {
+        if (refreshing.current) void refreshing.current.then(refresh);
+        else void refresh();
+      }, 180);
     };
     const channel = client
       .channel("inbox")
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages" },
-        sync,
+        (payload: RealtimePostgresInsertPayload<Message>) => {
+          const message = payload.new as Message;
+          const old = current.current;
+          if (
+            old &&
+            message.id &&
+            !old.messages.some((m) => m.id === message.id)
+          ) {
+            mutationVersion.current++;
+            apply({
+              ...old,
+              messages: mergeMessages(old.messages, [message]),
+              conversations: old.conversations.map((c) =>
+                c.id === message.conversation_id
+                  ? {
+                      ...c,
+                      last_body:
+                        message.body ||
+                        (message.image_id ? "사진을 보냈어요" : ""),
+                      last_message_at: message.created_at,
+                      unread_count:
+                        message.sender_id === old.viewer.id
+                          ? c.unread_count
+                          : unreadCount(c, old.messages, old.viewer.id) + 1,
+                    }
+                  : c,
+              ),
+            });
+          }
+          sync();
+        },
       )
       .on(
         "postgres_changes",
@@ -145,7 +263,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       document.removeEventListener("visibilitychange", focus);
       void client.removeChannel(channel);
     };
-  }, [refresh]);
+  }, [refresh, apply]);
   const mutate = useCallback(
     async <T,>(op: string, payload: Record<string, unknown>): Promise<T> => {
       if (!current.current) throw new Error("잠시 기다려 주세요.");
@@ -154,6 +272,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ op, payload }),
       });
+      mutationVersion.current++;
       if (op === "message.send")
         apply({
           ...current.current,
@@ -185,7 +304,52 @@ export function AppProvider({ children }: { children: ReactNode }) {
           posts: current.current.posts.filter((p) => p.id !== id),
         });
       }
-      if (op.startsWith("post.")) feeds.current.clear();
+      if (op === "message.read") {
+        const seq = Number(payload.seq);
+        apply({
+          ...current.current,
+          conversations: current.current.conversations.map((c) => {
+            if (c.id !== payload.conversation_id) return c;
+            const field =
+              c.seller_id === current.current!.viewer.id
+                ? "seller_read_seq"
+                : "buyer_read_seq";
+            const read = Math.max(c[field], seq);
+            return {
+              ...c,
+              [field]: read,
+              unread_count: current.current!.messages.filter(
+                (m) =>
+                  m.conversation_id === c.id &&
+                  m.sender_id !== current.current!.viewer.id &&
+                  m.seq > read,
+              ).length,
+            };
+          }),
+        });
+        return result;
+      }
+      if (op === "message.send") {
+        const m = result as Message;
+        apply({
+          ...current.current,
+          conversations: current.current.conversations.map((c) =>
+            c.id === m.conversation_id
+              ? {
+                  ...c,
+                  last_body: m.body || (m.image_id ? "사진을 보냈어요" : ""),
+                  last_message_at: m.created_at,
+                }
+              : c,
+          ),
+        });
+        return result;
+      }
+      if (op.startsWith("post.")) {
+        feeds.current.clear();
+        postRequests.current.clear();
+        feedVersion.current++;
+      }
       // The mutation result is already applied. Do not hold navigation or the
       // composer hostage to an additional full snapshot request.
       if (refreshing.current) void refreshing.current.then(refresh);
@@ -226,10 +390,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     ).id;
   }, []);
   const addPosts = useCallback(
-    (posts: Post[]) => {
+    (posts: Post[], profiles: Profile[] = []) => {
       if (current.current)
         apply({
           ...current.current,
+          profiles: [
+            ...new Map(
+              [...current.current.profiles, ...profiles].map((p) => [p.id, p]),
+            ).values(),
+          ],
           posts: [
             ...current.current.posts.filter(
               (p) => !posts.some((n) => n.id === p.id),
@@ -241,19 +410,55 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [apply],
   );
   const loadMessages = useCallback(
-    async (id: string, before?: number) => {
-      const result = await api<{ messages: Message[]; hasMore: boolean }>(
+    (id: string, before?: number) => {
+      const key = `${id}:${before ?? "latest"}`;
+      const cached = messagePages.current.get(key);
+      if (cached && (before || Date.now() - cached.fetchedAt < 5000))
+        return Promise.resolve(cached.hasMore);
+      const pending = messageRequests.current.get(key);
+      if (pending) return pending;
+      const request = api<{ messages: Message[]; hasMore: boolean }>(
         `/api/messages?conversation=${id}${before ? `&before=${before}` : ""}`,
-      );
-      if (current.current)
-        apply({
-          ...current.current,
-          messages: mergeMessages(current.current.messages, result.messages),
-        });
-      return result.hasMore;
+      )
+        .then((result) => {
+          if (current.current)
+            apply({
+              ...current.current,
+              messages: mergeMessages(
+                current.current.messages,
+                result.messages,
+              ),
+            });
+          messagePages.current.set(key, {
+            hasMore: result.hasMore,
+            fetchedAt: Date.now(),
+          });
+          if (messagePages.current.size > 100)
+            messagePages.current.delete(
+              messagePages.current.keys().next().value!,
+            );
+          return result.hasMore;
+        })
+        .finally(() => messageRequests.current.delete(key));
+      messageRequests.current.set(key, request);
+      return request;
     },
     [apply],
   );
+  useEffect(() => {
+    if (!viewerId) return;
+    const timer = setTimeout(() => {
+      const recent = [...(current.current?.conversations ?? [])].sort((a, b) =>
+        (b.last_message_at ?? "").localeCompare(a.last_message_at ?? ""),
+      )[0];
+      void Promise.allSettled([
+        loadPosts("type=lost&q=&available=true"),
+        loadPosts("mine=true&completed=false"),
+        ...(recent ? [loadMessages(recent.id)] : []),
+      ]);
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [viewerId, loadPosts, loadMessages]);
   return (
     <Context.Provider
       value={{
@@ -263,11 +468,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         refresh,
         mutate,
         upload,
-        image: (id) => `/api/media/${id}`,
+        image: (id, width) => `/api/media/${id}${width ? `?w=${width}` : ""}`,
         addPosts,
         loadMessages,
         getFeed,
         cacheFeed,
+        loadPosts,
       }}
     >
       {children}

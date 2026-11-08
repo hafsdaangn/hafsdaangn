@@ -1,6 +1,6 @@
 "use client";
 import Link from "./app-link";
-import Image from "next/image";
+export { Brand } from "./brand";
 import {
   ArrowLeft,
   PackageOpen,
@@ -19,20 +19,6 @@ import {
   isMarket,
 } from "@/lib/domain";
 import { useApp } from "./provider";
-export function Brand({ full = false }: { full?: boolean }) {
-  return (
-    <span className={`brand${full ? " brand-full" : ""}`}>
-      <Image
-        src={`/brand/${full ? "logo" : "symbol"}.svg`}
-        alt="합스당근"
-        width={full ? 1042 : 562}
-        height={607}
-        priority
-        className="brand-logo"
-      />
-    </span>
-  );
-}
 export function Avatar({
   name = "",
   large = false,
@@ -105,11 +91,33 @@ export function StatusBadge({ post }: { post: Pick<Post, "kind" | "status"> }) {
     </span>
   );
 }
-export function PostPhoto({ post, index = 0 }: { post: Post; index?: number }) {
+export function PostPhoto({
+  post,
+  index = 0,
+  thumbnail = true,
+}: {
+  post: Post;
+  index?: number;
+  thumbnail?: boolean;
+}) {
   const { image } = useApp();
-  const src = post.image_ids[index] ? image(post.image_ids[index]) : "";
+  const id = post.image_ids[index];
+  const src = id ? image(id, thumbnail ? 320 : undefined) : "";
   return src ? (
-    <img src={src} alt={post.title} loading="lazy" />
+    <img
+      src={src}
+      srcSet={
+        thumbnail ? `${image(id, 320)} 320w, ${image(id, 640)} 640w` : undefined
+      }
+      sizes={
+        thumbnail
+          ? "(max-width: 768px) 112px, (max-width: 1190px) 30vw, 262px"
+          : undefined
+      }
+      alt={post.title}
+      loading={thumbnail ? "lazy" : "eager"}
+      decoding="async"
+    />
   ) : (
     <span
       className="post-photo-placeholder"

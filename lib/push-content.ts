@@ -34,5 +34,7 @@ export function chatPushContent(
     body: `${text}`,
     url: `/app/chats/${message.conversation_id}`,
     tag: `chat-${message.conversation_id}`,
+    conversationId: message.conversation_id,
+    seq: message.seq,
   };
 }

@@ -3,7 +3,7 @@
 import { type ReactNode, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import { kakaoExternalBrowserUrl } from "@/lib/external-browser";
-import { Brand } from "./ui";
+import { Brand } from "./brand";
 import styles from "./external-browser.module.css";
 
 function subscribe(onChange: () => void) {

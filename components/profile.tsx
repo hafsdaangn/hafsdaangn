@@ -13,33 +13,41 @@ import {
   Spinner,
 } from "./ui";
 export function ProfilePage() {
-  const { state, base } = useApp(),
+  const { state, base, getFeed, loadPosts, addPosts, cacheFeed } = useApp(),
     [tab, setTab] = useState("active"),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
-    [ownPosts, setOwnPosts] = useState<Post[]>([]),
+    [ownPosts, setOwnPosts] = useState<Post[]>(
+      getFeed("mine=true&completed=false")?.posts ?? [],
+    ),
     [more, setMore] = useState(false),
     [loading, setLoading] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
-    queueMicrotask(() => setLoading(true));
-    fetch(`/api/posts?mine=true&completed=${tab === "completed"}`, {
-      signal: controller.signal,
-    })
-      .then(async (r) => {
-        const d = await r.json();
-        if (!r.ok) throw new Error(d.error);
+    const query = `mine=true&completed=${tab === "completed"}`;
+    const cached = getFeed(query);
+    queueMicrotask(() => {
+      if (controller.signal.aborted) return;
+      setOwnPosts(cached?.posts ?? []);
+      setMore(cached?.hasMore ?? false);
+      setLoading(true);
+      setError("");
+    });
+    loadPosts(query)
+      .then((d) => {
+        if (controller.signal.aborted) return;
+        addPosts(d.posts, d.profiles);
         setOwnPosts(d.posts);
         setMore(d.hasMore);
       })
       .catch((e) => {
-        if (e.name !== "AbortError") setError(e.message);
+        if (!controller.signal.aborted) setError(e.message);
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [tab]);
+  }, [tab, getFeed, loadPosts, addPosts]);
   async function loadMore() {
     const last = ownPosts.at(-1);
     if (!last) return;
@@ -50,7 +58,15 @@ export function ProfilePage() {
         ),
         d = await r.json();
       if (!r.ok) throw new Error(d.error);
-      setOwnPosts((old) => [...old, ...d.posts]);
+      const posts = [...ownPosts, ...d.posts];
+      cacheFeed(
+        `mine=true&completed=${tab === "completed"}`,
+        posts,
+        d.hasMore,
+        d.profiles,
+      );
+      addPosts(d.posts, d.profiles);
+      setOwnPosts(posts);
       setMore(d.hasMore);
     } catch (e) {
       setError((e as Error).message);

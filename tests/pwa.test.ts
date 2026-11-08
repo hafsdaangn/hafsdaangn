@@ -10,6 +10,7 @@ import {
   type PreparedPush,
 } from "../lib/push-client";
 import { devicePermission } from "../lib/push-permission";
+import { closeReadChatNotifications } from "../lib/chat-notifications";
 import {
   deviceEnvironment,
   observeInstall,
@@ -29,6 +30,64 @@ function replace(name: string, value: unknown) {
     else Reflect.deleteProperty(globalThis, name);
   };
 }
+
+test("reading a chat closes only its read notifications, including legacy URL-only notifications", async () => {
+  const closed: string[] = [];
+  const notification = (
+    name: string,
+    tag: string,
+    data: Record<string, unknown>,
+  ) => ({ tag, data, close: () => closed.push(name) });
+  const notifications = [
+    notification("read", "chat-room", { conversationId: "room", seq: 5 }),
+    notification("newer", "chat-room", { conversationId: "room", seq: 6 }),
+    notification("other room", "chat-other", {
+      conversationId: "other",
+      seq: 1,
+    }),
+    notification("post", "post-post", { url: "/app/posts/post" }),
+    notification("legacy", "", { url: "/app/chats/room" }),
+    notification("external", "", {
+      url: "https://other.example/app/chats/room",
+    }),
+  ];
+  const restore = [
+    replace("window", { location: { origin: "https://app.example" } }),
+    replace("navigator", {
+      serviceWorker: {
+        getRegistration: async () => ({
+          getNotifications: async () => notifications,
+        }),
+      },
+    }),
+  ];
+  try {
+    await closeReadChatNotifications("room", 5);
+    assert.deepEqual(closed, ["read", "legacy"]);
+  } finally {
+    restore.reverse().forEach((undo) => undo());
+  }
+});
+
+test("notification cleanup is harmless without a worker or when notification access fails", async () => {
+  const restore = [
+    replace("window", { location: { origin: "https://app.example" } }),
+    replace("navigator", {}),
+  ];
+  try {
+    await closeReadChatNotifications("room", 5);
+    Object.assign(navigator, {
+      serviceWorker: {
+        getRegistration: async () => {
+          throw new Error("unsupported");
+        },
+      },
+    });
+    await closeReadChatNotifications("room", 5);
+  } finally {
+    restore.reverse().forEach((undo) => undo());
+  }
+});
 
 test("device eligibility distinguishes iOS tabs, installed apps, old OS, in-app and insecure contexts", () => {
   const browser = Object.assign(new EventTarget(), {

@@ -34,12 +34,12 @@ test.beforeAll(async () => {
             resolveDir: process.cwd(),
             contents: `
         import {useSyncExternalStore} from 'react';
-        const control=window.chatTest={bodies:[],finish:[],blur:0};
+        const control=window.chatTest={bodies:[],finish:[],blur:0,reads:[],closed:[]};
         const message=(seq,body,sender_id='them',client_id='history-'+seq)=>({id:'message-'+seq,seq,body,sender_id,client_id,conversation_id:'room',image_id:null,created_at:'2026-11-08T01:00:00Z'});
         let state={viewer:{id:"me"},profiles:[{id:"them",display_name:"상대방"}],posts:[],messages:Array.from({length:window.chatHistory||0},(_,i)=>message(i+1,'기존 메시지 '+(i+1))),conversations:[{id:"room",seller_id:"me",buyer_id:"them",post_id:"post",title:"테스트 게시글",kind:"giveaway",last_message_at:new Date().toISOString(),buyer_read_seq:0,seller_read_seq:0}]};
         const listeners=new Set();const subscribe=fn=>{listeners.add(fn);return()=>listeners.delete(fn)};const snapshot=()=>state;
         const append=()=>{const seq=(state.messages.at(-1)?.seq||0)+1;state={...state,messages:[...state.messages,message(seq,'새로 받은 메시지 '+seq)]};listeners.forEach(fn=>fn())};control.append=append;
-        const model={base:"/app",image:()=>"",loadMessages:async(id,before)=>{if(before){const older=Array.from({length:10},(_,i)=>message(before-10+i,'이전 메시지 '+(before-10+i)));state={...state,messages:[...older,...state.messages]};listeners.forEach(fn=>fn());return false}return !!window.chatOlder},upload:async()=>"image",mutate:async(op,payload)=>{if(op!=="message.send")return;control.bodies.push(payload.body);return new Promise((resolve,reject)=>control.finish.push(fail=>{if(fail)return reject(new Error("전송 실패"));const seq=(state.messages.at(-1)?.seq||0)+1;const sent=message(seq,payload.body,'me',payload.client_id);state={...state,messages:[...state.messages,sent]};listeners.forEach(fn=>fn());resolve(sent)}));}};
+        const model={base:"/app",image:()=>"",loadMessages:async(id,before)=>{if(before){const older=Array.from({length:10},(_,i)=>message(before-10+i,'이전 메시지 '+(before-10+i)));state={...state,messages:[...older,...state.messages]};listeners.forEach(fn=>fn());return false}return !!window.chatOlder},upload:async()=>"image",mutate:async(op,payload)=>{if(op==="message.read"){control.reads.push(payload.seq);if(window.holdChatRead)return new Promise((resolve,reject)=>control.finishRead=fail=>fail?reject(new Error("read failed")):resolve());return}if(op!=="message.send")return;control.bodies.push(payload.body);return new Promise((resolve,reject)=>control.finish.push(fail=>{if(fail)return reject(new Error("전송 실패"));const seq=(state.messages.at(-1)?.seq||0)+1;const sent=message(seq,payload.body,'me',payload.client_id);state={...state,messages:[...state.messages,sent]};listeners.forEach(fn=>fn());resolve(sent)}));}};
         export const useApp=()=>({...model,state:useSyncExternalStore(subscribe,snapshot)});`,
           }));
           builder.onResolve({ filter: /^next\/link$/ }, () => ({
@@ -66,16 +66,48 @@ type Controls = {
   finish: ((fail?: boolean) => void)[];
   blur: number;
   append: () => void;
+  reads: number[];
+  closed: string[];
+  finishRead: (fail?: boolean) => void;
 };
 async function openChat(
   page: Page,
-  options: { visualViewport?: boolean; history?: number; older?: boolean } = {},
+  options: {
+    visualViewport?: boolean;
+    history?: number;
+    older?: boolean;
+    holdRead?: boolean;
+  } = {},
 ) {
   await page.addInitScript((options) => {
     Object.assign(window, {
       chatHistory: options.history ?? 0,
       chatOlder: options.older,
+      holdChatRead: options.holdRead,
     });
+    if (options.holdRead) {
+      const notification = (name: string, room: string, seq: number) => ({
+        tag: `chat-${room}`,
+        data: { conversationId: room, seq },
+        close: () =>
+          (window as unknown as { chatTest: Controls }).chatTest.closed.push(
+            name,
+          ),
+      });
+      const notifications = [
+        notification("read", "room", 1),
+        notification("newer", "room", 2),
+        notification("other", "other", 1),
+      ];
+      Object.defineProperty(navigator, "serviceWorker", {
+        configurable: true,
+        value: {
+          getRegistration: async () => ({
+            getNotifications: async () => notifications,
+          }),
+        },
+      });
+    }
     if (!options.visualViewport) return;
     const viewport = Object.assign(new EventTarget(), {
       height: screen.height,
@@ -118,6 +150,31 @@ async function openChat(
       });
   });
 }
+
+test("chat notifications close only after successful reading, preserving newer and other-room alerts", async ({
+  page,
+}) => {
+  await openChat(page, { history: 1, holdRead: true });
+  const controls = () =>
+    page.evaluate(() => {
+      const value = (window as unknown as { chatTest: Controls }).chatTest;
+      return { reads: value.reads, closed: value.closed };
+    });
+  await expect.poll(controls).toEqual({ reads: [1], closed: [] });
+  await page.evaluate(async () => {
+    (window as unknown as { chatTest: Controls }).chatTest.finishRead(true);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+  expect((await controls()).closed).toEqual([]);
+  await page.evaluate(() =>
+    document.dispatchEvent(new Event("visibilitychange")),
+  );
+  await expect.poll(controls).toEqual({ reads: [1, 1], closed: [] });
+  await page.evaluate(() =>
+    (window as unknown as { chatTest: Controls }).chatTest.finishRead(),
+  );
+  await expect.poll(controls).toEqual({ reads: [1, 1], closed: ["read"] });
+});
 
 test("touch send keeps continuous input focus while sending multiple messages", async ({
   page,

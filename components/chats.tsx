@@ -1,12 +1,7 @@
 "use client";
 import Link from "./app-link";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import {
-  ArrowLeft,
-  ArrowUp,
-  Plus,
-  ChevronRight,
-} from "lucide-react";
+import { ArrowLeft, ArrowUp, Plus, ChevronRight } from "lucide-react";
 import {
   type Message,
   otherMember,
@@ -15,6 +10,7 @@ import {
   relativeTime,
 } from "@/lib/domain";
 import { useApp } from "./provider";
+import { closeReadChatNotifications } from "@/lib/chat-notifications";
 import {
   Avatar,
   Empty,
@@ -43,6 +39,7 @@ export function Chats({ id }: { id?: string }) {
     file = useRef<HTMLInputElement>(null),
     messageInput = useRef<HTMLInputElement>(null),
     lastRead = useRef(0),
+    confirmedRead = useRef(0),
     pinnedToBottom = useRef(true),
     touchSend = useRef<number | null>(null),
     suppressSendClick = useRef(false),
@@ -124,6 +121,7 @@ export function Chats({ id }: { id?: string }) {
   }, [activeRoom, id]);
   useEffect(() => {
     lastRead.current = 0;
+    confirmedRead.current = 0;
     if (!id) return;
     let active = true;
     void loadMessages(id)
@@ -140,14 +138,21 @@ export function Chats({ id }: { id?: string }) {
   useEffect(() => {
     if (!id || !lastSeq) return;
     const mark = () => {
-      if (document.visibilityState !== "visible" || lastRead.current >= lastSeq)
+      if (document.visibilityState !== "visible") return;
+      if (lastRead.current >= lastSeq) {
+        if (confirmedRead.current >= lastSeq)
+          void closeReadChatNotifications(id, lastSeq);
         return;
+      }
       lastRead.current = lastSeq;
-      void mutate("message.read", { conversation_id: id, seq: lastSeq }).catch(
-        () => {
+      void mutate("message.read", { conversation_id: id, seq: lastSeq })
+        .then(() => {
+          confirmedRead.current = Math.max(confirmedRead.current, lastSeq);
+          void closeReadChatNotifications(id, lastSeq);
+        })
+        .catch(() => {
           lastRead.current = 0;
-        },
-      );
+        });
     };
     mark();
     document.addEventListener("visibilitychange", mark);
@@ -314,7 +319,7 @@ export function Chats({ id }: { id?: string }) {
               </div>
             </header>
             <Link
-              href={post ? `${base}/posts/${post.id}` : `${base}/chats/${id}`}
+              href={`${base}/posts/${room.post_id}`}
               className="chat-product"
             >
               {post && (

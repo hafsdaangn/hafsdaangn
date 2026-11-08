@@ -9,7 +9,9 @@ export async function POST(request: Request) {
     await forgetPushDevice();
     const client = await serverClient();
     await client.auth.signOut();
-    return json({ ok: true });
+    const response = json({ ok: true });
+    response.headers.set("Clear-Site-Data", '"cache"');
+    return response;
   } catch (e) {
     return failure(e);
   }

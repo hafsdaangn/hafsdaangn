@@ -20,7 +20,11 @@ self.addEventListener("push", (event) => {
       tag: data?.tag || "chat",
       // Replacing an existing chat notification should alert again.
       renotify: true,
-      data: { url: data?.url || "/app/chats" },
+      data: {
+        url: data?.url || "/app/chats",
+        conversationId: data?.conversationId,
+        seq: data?.seq,
+      },
     }),
   );
 });

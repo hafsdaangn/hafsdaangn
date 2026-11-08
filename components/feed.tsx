@@ -14,7 +14,7 @@ import {
   WriteButton,
 } from "./ui";
 export function Feed({ lost = false }: { lost?: boolean }) {
-  const { state, addPosts, getFeed, cacheFeed } = useApp(),
+  const { state, addPosts, getFeed, cacheFeed, loadPosts } = useApp(),
     params = useSearchParams(),
     path = usePathname();
   const q = params.get("q") ?? "",
@@ -86,12 +86,9 @@ export function Feed({ lost = false }: { lost?: boolean }) {
       return () => {
         version.current = n + 1;
       };
-    fetch(`/api/posts?${queryString}`, { signal: controller.signal })
-      .then(async (r) => {
-        const data = await r.json();
-        if (!r.ok) throw new Error(data.error);
+    loadPosts(queryString)
+      .then((data) => {
         if (n === version.current) {
-          cacheFeed(queryString, data.posts, data.hasMore);
           setRemote(data.posts);
           setMore(data.hasMore);
         }
@@ -107,12 +104,13 @@ export function Feed({ lost = false }: { lost?: boolean }) {
       controller.abort();
       version.current = n + 1;
     };
-  }, [queryString, getFeed, cacheFeed]);
+  }, [queryString, getFeed, loadPosts]);
   // The feed can finish before the rest of the app's initial data.
   const ready = Boolean(state);
   useEffect(() => {
-    if (ready && remote.length) addPosts(remote);
-  }, [ready, remote, addPosts]);
+    if (ready && remote.length)
+      addPosts(remote, getFeed(queryString)?.profiles);
+  }, [ready, remote, addPosts, getFeed, queryString]);
   const posts = remote;
   async function loadMore() {
     const last = remote.at(-1);
@@ -127,7 +125,10 @@ export function Feed({ lost = false }: { lost?: boolean }) {
       if (!r.ok) throw new Error(data.error);
       if (n !== version.current) return;
       const posts = [...remote, ...data.posts];
-      cacheFeed(queryString, posts, data.hasMore);
+      cacheFeed(queryString, posts, data.hasMore, [
+        ...(getFeed(queryString)?.profiles ?? []),
+        ...(data.profiles ?? []),
+      ]);
       setRemote(posts);
       setMore(data.hasMore);
     } catch (e) {

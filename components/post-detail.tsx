@@ -26,7 +26,7 @@ import {
   Spinner,
   StatusBadge,
 } from "./ui";
-import { PostForm } from "./post-form";
+import { PostForm } from "./lazy-post-form";
 export function PostDetail({
   id,
   edit = false,
@@ -34,7 +34,7 @@ export function PostDetail({
   id: string;
   edit?: boolean;
 }) {
-  const { state, base, mutate, addPosts } = useApp(),
+  const { state, base, mutate, addPosts, loadPosts } = useApp(),
     [index, setIndex] = useState(0),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
@@ -43,12 +43,10 @@ export function PostDetail({
     [missing, setMissing] = useState(false);
   useEffect(() => {
     let active = true;
-    fetch(`/api/posts?id=${encodeURIComponent(id)}`)
-      .then(async (r) => {
-        const d = await r.json();
-        if (!r.ok) throw new Error(d.error);
+    loadPosts(`id=${encodeURIComponent(id)}`)
+      .then((d) => {
         if (active) {
-          addPosts(d.posts);
+          addPosts(d.posts, d.profiles);
           setMissing(d.posts.length === 0);
           setLoaded(true);
         }
@@ -62,7 +60,7 @@ export function PostDetail({
     return () => {
       active = false;
     };
-  }, [id, addPosts]);
+  }, [id, addPosts, loadPosts]);
   if (!state) return null;
   const post = missing
     ? undefined
@@ -119,7 +117,7 @@ export function PostDetail({
       />
       <div className="detail-grid">
         <div className="detail-photo">
-          <PostPhoto post={post} index={index} />
+          <PostPhoto post={post} index={index} thumbnail={false} />
           {post.image_ids.length > 1 && (
             <>
               <div className="photo-counter">

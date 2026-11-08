@@ -7,7 +7,7 @@ import { useApp } from "./provider";
 import { Brand, ErrorNotice, Spinner } from "./ui";
 import { Feed } from "./feed";
 import { PostDetail } from "./post-detail";
-import { PostForm } from "./post-form";
+import { PostForm } from "./lazy-post-form";
 import { Chats } from "./chats";
 import { ProfilePage } from "./profile";
 import { PushSettings } from "./push-settings";

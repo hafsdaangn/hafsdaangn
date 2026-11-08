@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { appEnvironment } from "@/lib/environment";
-import { Brand } from "@/components/ui";
+import { Brand } from "@/components/brand";
 import { InstallEntry } from "@/components/install-entry";
 import { configured } from "@/lib/supabase/server";
 export default async function Landing({

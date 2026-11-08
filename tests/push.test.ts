@@ -224,6 +224,8 @@ test("chat preview includes the sender, message and product within push payload 
     body: "아직 구매 가능한가요?",
     url: "/app/chats/room",
     tag: "chat-room",
+    conversationId: "room",
+    seq: 1,
   });
   const photo = chatPushContent(
     { ...message, body: "", image_id: "image" },
@@ -416,7 +418,12 @@ test("notification clicks activate the app before navigating and recover from st
 
 test("successive chat pushes request another alert and worker updates activate immediately", async () => {
   const handlers: Record<string, (event: unknown) => void> = {};
-  const notifications: { tag: string; renotify: boolean; body: string }[] = [];
+  const notifications: {
+    tag: string;
+    renotify: boolean;
+    body: string;
+    data?: { conversationId: string; seq: number };
+  }[] = [];
   let activated = false,
     claimed = false;
   const self = {
@@ -447,7 +454,15 @@ test("successive chat pushes request another alert and worker updates activate i
   handlers.activate({ waitUntil });
   for (const body of ["첫 메시지", "두 번째 메시지"])
     handlers.push({
-      data: { json: () => ({ title: "학교친구", body, tag: "chat-room" }) },
+      data: {
+        json: () => ({
+          title: "학교친구",
+          body,
+          tag: "chat-room",
+          conversationId: "room",
+          seq: body === "첫 메시지" ? 1 : 2,
+        }),
+      },
       waitUntil,
     });
   await Promise.all(pending);
@@ -461,4 +476,6 @@ test("successive chat pushes request another alert and worker updates activate i
     ),
   );
   assert.equal(notifications[1].body, "두 번째 메시지");
+  assert.equal(notifications[1].data?.conversationId, "room");
+  assert.equal(notifications[1].data?.seq, 2);
 });

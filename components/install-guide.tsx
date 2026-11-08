@@ -76,14 +76,13 @@ export function InstallActions({
       <div className={styles.guide}>
         <ol>
           <li>
-            Safari에서 이 페이지를 열고 <strong>공유</strong> 버튼을 눌러
-            주세요.
+            Safari에서 이 페이지를 열고 <strong>공유</strong> 버튼을 눌러주세요.
           </li>
           <li>
-            열린 메뉴에서 <strong>홈 화면에 추가</strong>를 선택해 주세요.
+            열린 메뉴에서 <strong>홈 화면에 추가</strong>를 선택해주세요.
           </li>
           <li>
-            홈 화면의 <strong>합스당근 아이콘</strong>으로 다시 열어 주세요.
+            홈 화면의 <strong>합스당근 아이콘</strong>으로 다시 열어주세요.
           </li>
         </ol>
         <p>홈 화면에서 실행하면 알림을 설정할 수 있어요.</p>
