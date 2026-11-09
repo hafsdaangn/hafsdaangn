@@ -1,4 +1,8 @@
 import posthog from "posthog-js";
+import * as Sentry from "@sentry/nextjs";
+import { sentryOptions } from "./lib/sentry-options";
+
+Sentry.init(sentryOptions);
 
 const projectToken = process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
 const host = process.env.NEXT_PUBLIC_POSTHOG_HOST;
@@ -19,3 +23,5 @@ if (projectToken && host) {
     `${missingVariable} variable required by PostHog is missing or un-configured, this causes events to be silently missed. This error stops appearing once ${missingVariable} is configured`,
   );
 }
+
+export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
