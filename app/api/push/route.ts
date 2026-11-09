@@ -6,6 +6,7 @@ import { failure, json, sameOrigin } from "@/lib/http";
 import { forgetPushDevice, pushConfigured, pushCookie } from "@/lib/push";
 import { subscriptionSchema } from "@/lib/push-schema";
 import { initializePushDefaults } from "@/lib/push-defaults";
+import { captureServerEvent } from "@/lib/posthog-server";
 
 export async function GET() {
   try {
@@ -68,6 +69,11 @@ export async function POST(request: Request) {
       sameSite: "lax",
       path: "/",
       maxAge: 60 * 60 * 24 * 365,
+    });
+    await captureServerEvent({
+      request,
+      distinctId: user.id,
+      event: "push_subscription_enabled",
     });
     return json({ ok: true });
   } catch (error) {

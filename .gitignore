@@ -57,3 +57,4 @@ supabase/.temp/*
 .agents/
 .claude/
 skills-lock.json
+.env.local

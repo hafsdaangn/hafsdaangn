@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { browserClient } from "@/lib/supabase/browser";
+import posthog from "posthog-js";
 import type { RealtimePostgresInsertPayload } from "@supabase/supabase-js";
 import {
   unreadCount,
@@ -63,6 +64,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<Snapshot | null>(null),
     [error, setError] = useState("");
   const current = useRef<Snapshot | null>(null);
+  const identifiedUserId = useRef<string | null>(null);
   const refreshing = useRef<Promise<void> | null>(null);
   // Memory belongs to this mounted, authenticated provider, never another user.
   const feeds = useRef(new Map<string, FeedPage>());
@@ -193,6 +195,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     void refresh();
   }, [refresh]);
   const viewerId = state?.viewer.id;
+  const viewerDisplayName = state?.viewer.display_name;
+  useEffect(() => {
+    if (!viewerId || identifiedUserId.current === viewerId) return;
+
+    const previousUserId = posthog.get_property("$user_id");
+    if (previousUserId && previousUserId !== viewerId) posthog.reset();
+
+    posthog.identify(viewerId, { display_name: viewerDisplayName });
+    identifiedUserId.current = viewerId;
+  }, [viewerId, viewerDisplayName]);
   useEffect(() => {
     const client = browserClient();
     if (!client) return;

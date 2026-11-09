@@ -5,6 +5,7 @@ import {
   defaultPostNotifications,
   postNotificationSchema,
 } from "@/lib/post-notifications";
+import { captureServerEvent } from "@/lib/posthog-server";
 
 export async function GET() {
   try {
@@ -38,6 +39,16 @@ export async function PUT(request: Request) {
         { onConflict: "user_id,section" },
       );
     if (error) throw new Error("게시글 알림 설정을 저장하지 못했어요.");
+    await captureServerEvent({
+      request,
+      distinctId: user.id,
+      event: "post_notification_preferences_updated",
+      properties: {
+        notification_section: parsed.data.section,
+        notification_mode: parsed.data.mode,
+        keyword_count: parsed.data.keywords.length,
+      },
+    });
     return json(parsed.data);
   } catch (error) {
     return failure(error);

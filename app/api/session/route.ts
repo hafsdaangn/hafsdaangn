@@ -4,6 +4,7 @@ import { cookieOptions, sessionCookie, tokenHash } from "@/lib/google-oauth";
 import { member } from "@/lib/auth";
 import { failure, json, sameOrigin } from "@/lib/http";
 import { forgetPushDevice } from "@/lib/push";
+import { captureServerEvent } from "@/lib/posthog-server";
 export async function GET() {
   try {
     const { accessToken } = await member();
@@ -15,6 +16,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     sameOrigin(request);
+    const { user } = await member();
     const { action } = await request.json();
     if (action !== "logout") throw new Error("잘못된 요청입니다.");
     await forgetPushDevice();
@@ -27,6 +29,11 @@ export async function POST(request: Request) {
       if (error) throw new Error("로그아웃하지 못했어요. 다시 시도해 주세요.");
     }
     jar.set(sessionCookie(), "", { ...cookieOptions(), maxAge: 0 });
+    await captureServerEvent({
+      request,
+      distinctId: user.id,
+      event: "user_logged_out",
+    });
     const response = json({ ok: true });
     response.headers.set("Clear-Site-Data", '"cache"');
     return response;
