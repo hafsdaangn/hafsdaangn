@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { Analytics } from "@vercel/analytics/next";
 import { ExternalBrowser } from "@/components/external-browser";
 import { PwaProvider } from "@/components/pwa-provider";
 import "@fontsource-variable/noto-sans-kr";
@@ -36,6 +37,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <ExternalBrowser>{children}</ExternalBrowser>
         </PwaProvider>
         <SpeedInsights />
+        <Analytics />
       </body>
     </html>
   );
