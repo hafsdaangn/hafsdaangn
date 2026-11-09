@@ -1,5 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import posthog from "posthog-js";
+import { captureDeviceEventOnce } from "../lib/device-analytics";
 import {
   connectPush,
   snooze,
@@ -211,7 +213,16 @@ test("install event may arrive late and can only be consumed once", async () => 
   }
 });
 
-test("subscribe starts synchronously from click and server failure retains subscription for retry", async () => {
+test("subscribe starts synchronously from click and server failure retains subscription for retry", async (t) => {
+  const events: string[] = [];
+  t.mock.method(posthog, "capture", (event: string) => {
+    events.push(event);
+    return {};
+  });
+  const restoreStorage = replace("localStorage", {
+    getItem: () => null,
+    setItem: () => {},
+  });
   const calls: string[] = [];
   const subscription = {
     toJSON: () => ({ endpoint: "https://push.apple.com/test" }),
@@ -242,11 +253,82 @@ test("subscribe starts synchronously from click and server failure retains subsc
     assert.deepEqual(calls, ["subscribe"]);
     await assert.rejects(result, /서버에 설정을 저장하지 못했어요/);
     assert.equal(prepared.subscription, subscription);
+    assert.deepEqual(events, []);
     fail = false;
     assert.equal(await connectPush(prepared), subscription);
     assert.deepEqual(calls, ["subscribe", "POST", "POST"]);
+    await connectPush(prepared);
+    assert.deepEqual(events, ["push_subscription_enabled"]);
   } finally {
     undo();
+    restoreStorage();
+  }
+});
+
+test("device milestones respect persistent markers and retry if analytics was unavailable", async (t) => {
+  const storage = new Map([["device-milestone:v1:already-recorded", "1"]]);
+  const restore = replace("localStorage", {
+    getItem: (key: string) => storage.get(key) ?? null,
+    setItem: (key: string, value: string) => storage.set(key, value),
+  });
+  let ready = false;
+  const events: string[] = [];
+  t.mock.method(posthog, "capture", (event: string) => {
+    if (!ready) return undefined;
+    events.push(event);
+    return {};
+  });
+  try {
+    await captureDeviceEventOnce("retry-milestone");
+    assert.equal(storage.has("device-milestone:v1:retry-milestone"), false);
+    ready = true;
+    await captureDeviceEventOnce("already-recorded");
+    await Promise.all([
+      captureDeviceEventOnce("retry-milestone"),
+      captureDeviceEventOnce("retry-milestone"),
+    ]);
+    assert.deepEqual(events, ["retry-milestone"]);
+    assert.equal(storage.get("device-milestone:v1:retry-milestone"), "1");
+  } finally {
+    restore();
+  }
+});
+
+test("installation and standalone launch produce separate milestones only once", async (t) => {
+  const browser = Object.assign(new EventTarget(), { isSecureContext: true });
+  let standalone = false;
+  const events: string[] = [];
+  t.mock.method(posthog, "capture", (event: string) => {
+    events.push(event);
+    return {};
+  });
+  const restore = [
+    replace("window", browser),
+    replace("navigator", { userAgent: "iPhone", platform: "iPhone" }),
+    replace("matchMedia", () =>
+      Object.assign(new EventTarget(), { matches: standalone }),
+    ),
+    replace("localStorage", {
+      getItem: () => {
+        throw new Error("blocked");
+      },
+      setItem: () => {
+        throw new Error("blocked");
+      },
+    }),
+  ];
+  const stop = observeInstall();
+  try {
+    assert.deepEqual(events, []);
+    browser.dispatchEvent(new Event("appinstalled"));
+    browser.dispatchEvent(new Event("appinstalled"));
+    standalone = true;
+    browser.dispatchEvent(new Event("pageshow"));
+    browser.dispatchEvent(new Event("focus"));
+    assert.deepEqual(events, ["pwa_installed", "pwa_first_open"]);
+  } finally {
+    stop();
+    restore.reverse().forEach((undo) => undo());
   }
 });
 

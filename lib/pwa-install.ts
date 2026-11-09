@@ -1,3 +1,5 @@
+import { captureDeviceEventOnce } from "./device-analytics";
+
 export function deviceEnvironment() {
   const ios =
     /iPad|iPhone|iPod/.test(navigator.userAgent) ||
@@ -69,12 +71,25 @@ export function subscribeInstall(listener: () => void) {
 
 // Attach once in the root, before the authenticated workspace loads.
 export function observeInstall() {
-  const refresh = () => update({ ...deviceEnvironment(), ready: true });
+  const refresh = () => {
+    const environment = deviceEnvironment();
+    update({ ...environment, ready: true });
+    if (environment.standalone)
+      void captureDeviceEventOnce("pwa_first_open", {
+        detection_method: "standalone_launch",
+        platform: environment.ios ? "ios" : "other",
+      });
+  };
   const beforeInstall = (event: Event) => {
     event.preventDefault();
     update({ prompt: event as InstallPrompt });
   };
-  const installed = () => update({ installed: true, prompt: null });
+  const installed = () => {
+    update({ installed: true, prompt: null });
+    void captureDeviceEventOnce("pwa_installed", {
+      detection_method: "appinstalled",
+    });
+  };
   const media = matchMedia("(display-mode: standalone)");
   const fullscreen = matchMedia("(display-mode: fullscreen)");
   window.addEventListener("beforeinstallprompt", beforeInstall);

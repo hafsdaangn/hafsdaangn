@@ -1,3 +1,5 @@
+import { captureDeviceEventOnce } from "./device-analytics";
+
 export type PushConfig = {
   configured: boolean;
   publicKey: string | null;
@@ -120,6 +122,7 @@ export async function connectPush(
       "기기에서 알림은 허용됐지만 서버에 설정을 저장하지 못했어요. 다시 시도해 주세요.",
     );
   }
+  void captureDeviceEventOnce("push_subscription_enabled");
   return subscription;
 }
 
