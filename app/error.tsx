@@ -1,5 +1,19 @@
 "use client";
-export default function ErrorPage({ reset }: { reset: () => void }) {
+
+import posthog from "posthog-js";
+import { useEffect } from "react";
+
+export default function ErrorPage({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  useEffect(() => {
+    posthog.captureException(error);
+  }, [error]);
+
   return (
     <div className="loading-page">
       <h1>화면을 불러오지 못했어요</h1>

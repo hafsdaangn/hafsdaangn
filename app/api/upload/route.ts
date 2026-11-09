@@ -4,6 +4,9 @@ import { member } from "@/lib/auth";
 import { storageAdmin } from "@/lib/supabase/server";
 import { failure, json, sameOrigin } from "@/lib/http";
 import { z } from "zod";
+import { captureServerEvent } from "@/lib/posthog-server";
+import { after } from "next/server";
+import { emitPostHogLog, flushPostHogLogs } from "@/instrumentation";
 export const runtime = "nodejs";
 export async function POST(request: Request) {
   try {
@@ -51,6 +54,16 @@ export async function POST(request: Request) {
       await admin.storage.from("images").remove([path]);
       throw new Error("사진 정보를 저장하지 못했어요.");
     }
+    await captureServerEvent({
+      request,
+      distinctId: user.id,
+      event: "media_uploaded",
+      properties: { upload_context: conversation_id ? "conversation" : "post" },
+    });
+    emitPostHogLog("Media upload completed", {
+      upload_context: conversation_id ? "conversation" : "post",
+    });
+    after(flushPostHogLogs);
     return json({ id });
   } catch (e) {
     return failure(e);

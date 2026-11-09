@@ -5,6 +5,8 @@ import { z } from "zod";
 import { after } from "next/server";
 import { notifyChat, notifyPost } from "@/lib/push";
 import type { Message, Post } from "@/lib/domain";
+import { captureServerEvent } from "@/lib/posthog-server";
+import { emitPostHogLog, flushPostHogLogs } from "@/instrumentation";
 const schemas = {
   "post.save": postSchema,
   "post.status": z.object({
@@ -20,10 +22,56 @@ const schemas = {
     seq: z.number().int().nonnegative(),
   }),
 };
+
+async function captureMutation(
+  request: Request,
+  distinctId: string,
+  op: keyof typeof schemas,
+  data: unknown,
+  isNewPost: boolean,
+) {
+  if (op === "post.save") {
+    const post = data as Post;
+    await captureServerEvent({
+      request,
+      distinctId,
+      event: isNewPost ? "post_created" : "post_updated",
+      properties: {
+        post_kind: post.kind,
+        post_category: post.category,
+        image_count: post.image_ids.length,
+      },
+    });
+  } else if (op === "post.status") {
+    await captureServerEvent({
+      request,
+      distinctId,
+      event: "post_status_updated",
+      properties: { status: (data as Post).status },
+    });
+  } else if (op === "post.delete") {
+    await captureServerEvent({ request, distinctId, event: "post_deleted" });
+  } else if (op === "conversation.create") {
+    await captureServerEvent({
+      request,
+      distinctId,
+      event: "conversation_started",
+    });
+  } else if (op === "message.send") {
+    const message = data as Message;
+    await captureServerEvent({
+      request,
+      distinctId,
+      event: "message_sent",
+      properties: { has_attachment: Boolean(message.image_id) },
+    });
+  }
+}
+
 export async function POST(request: Request) {
   try {
     sameOrigin(request);
-    const { client } = await member();
+    const { client, user } = await member();
     const { op, payload } = await request.json();
     if (typeof op !== "string" || !Object.hasOwn(schemas, op))
       throw new Error("허용되지 않은 작업입니다.");
@@ -45,6 +93,15 @@ export async function POST(request: Request) {
           : "요청한 내용을 저장하지 못했어요. 입력을 확인하고 다시 시도해 주세요.",
       );
     }
+    await captureMutation(
+      request,
+      user.id,
+      op as keyof typeof schemas,
+      data,
+      op === "post.save" && !("id" in parsed.data),
+    );
+    emitPostHogLog("Mutation completed", { operation: op });
+    after(flushPostHogLogs);
     if (op === "message.send")
       after(async () => {
         try {

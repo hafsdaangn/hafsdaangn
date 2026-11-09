@@ -4,6 +4,7 @@ import Link from "./app-link";
 import { Bell, LogOut, ChevronRight } from "lucide-react";
 import type { Post } from "@/lib/domain";
 import { useApp } from "./provider";
+import posthog from "posthog-js";
 import {
   Avatar,
   Empty,
@@ -85,6 +86,7 @@ export function ProfilePage() {
         body: JSON.stringify({ action: "logout" }),
       });
       if (!r.ok) throw new Error((await r.json()).error);
+      posthog.reset();
       window.location.assign("/");
     } catch (e) {
       setError((e as Error).message);
