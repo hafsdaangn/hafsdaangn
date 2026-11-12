@@ -1,6 +1,7 @@
 import { appEnvironment } from "@/lib/environment";
 import { Brand } from "@/components/brand";
 import { InstallEntry } from "@/components/install-entry";
+import { LandingLogin } from "@/components/landing-login";
 import { configured } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { member, MembershipError } from "@/lib/auth";
@@ -41,14 +42,11 @@ export default async function Landing({
             <Brand full />
           </h1>
           <div className="login-actions">
-            <a
-              className={`button google-button ${!ready ? "not-ready" : ""}`}
-              href="/auth/login"
-            >
+            <LandingLogin ready={ready}>
               {development
                 ? "Google 계정으로 시작하기"
                 : "학교 Google 계정으로 시작하기"}
-            </a>
+            </LandingLogin>
             <InstallEntry landing />
             {error && (
               <p className="error-notice" role="alert">

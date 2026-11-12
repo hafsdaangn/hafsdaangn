@@ -62,12 +62,6 @@
 .landingEntry button {
   width: 100%;
   min-height: 46px;
-  color: var(--color-secondary);
-  background: var(--color-paper);
-  border: 1px solid var(--color-secondary);
-}
-.landingEntry button:hover:not(:disabled) {
-  background: var(--color-secondary-soft);
 }
 .entry .actions {
   margin: 0;

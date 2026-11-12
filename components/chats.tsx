@@ -272,7 +272,7 @@ export function Chats({ id }: { id?: string }) {
                       )}
                       <small>{relativeTime(c.last_message_at)}</small>
                     </div>
-                    <p>
+                    <p className="ph-mask ph-sensitive">
                       {c.last_body ||
                         last?.body ||
                         (last?.image_id
@@ -381,7 +381,11 @@ export function Chats({ id }: { id?: string }) {
                               alt="채팅에 첨부된 사진"
                             />
                           )}
-                          {message.body && <p>{message.body}</p>}
+                          {message.body && (
+                            <p className="ph-mask ph-sensitive">
+                              {message.body}
+                            </p>
+                          )}
                         </div>
                         <span className="message-time">
                           {mine && message.seq <= readSeq && <span>읽음</span>}
@@ -411,7 +415,7 @@ export function Chats({ id }: { id?: string }) {
                             alt="보내는 사진"
                           />
                         )}
-                        <p>{p.body}</p>
+                        <p className="ph-mask ph-sensitive">{p.body}</p>
                       </div>
                       {p.failed ? (
                         <button

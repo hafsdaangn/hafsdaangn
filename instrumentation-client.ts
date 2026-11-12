@@ -13,6 +13,13 @@ if (projectToken && host) {
     tracing_headers: [window.location.hostname],
     defaults: "2026-01-30",
     capture_exceptions: true,
+    session_recording: {
+      maskAllInputs: true,
+      maskTextSelector: ".ph-mask",
+      maskTextFn: (text) => text.replace(/\S/g, "*"),
+      // Chat content also travels in API request/response bodies.
+      recordBody: false,
+    },
   });
 } else if (process.env.NODE_ENV === "development") {
   const missingVariable = projectToken

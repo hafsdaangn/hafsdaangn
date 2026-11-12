@@ -9,7 +9,7 @@ export function ChatPhoto({ src, alt }: { src: string; alt: string }) {
     <>
       <button
         type="button"
-        className="chat-photo-trigger"
+        className="chat-photo-trigger ph-no-capture"
         aria-label={`${alt} 크게 보기`}
         aria-haspopup="dialog"
         onClick={() => setOpen(true)}
@@ -107,7 +107,7 @@ function PhotoDialog({
                 <LoaderCircle className="spin" size={28} />
               </div>
             )}
-            <div className="chat-photo-canvas">
+            <div className="chat-photo-canvas ph-no-capture">
               <img
                 key={attempt}
                 src={src}

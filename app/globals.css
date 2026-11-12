@@ -1486,15 +1486,9 @@ input[type="checkbox"] {
   max-width: 360px;
 }
 .google-button {
-  color: var(--color-on-accent);
-  background: var(--color-accent);
-  border: 1px solid transparent;
   width: 100%;
   font-size: 16px;
   min-height: 54px;
-}
-.google-button:hover {
-  background: var(--color-accent-hover);
 }
 @media (min-width: 769px) and (max-width: 1190px) {
   .page-width,
