@@ -2,22 +2,25 @@
 
 import Link from "./app-link";
 import { ArrowLeft, Bell } from "lucide-react";
+import { useState } from "react";
 import { useApp } from "./provider";
 import { PageHeading } from "./ui";
 import { usePushDevice } from "./push-device-provider";
 import { PostNotificationSettings } from "./post-notification-settings";
 import { ChatNotificationSettings } from "./chat-notification-settings";
+import { IosInstallDialog } from "./install-guide";
 import styles from "./notification-settings.module.css";
 
 export function PushSettings() {
   const { state, base } = useApp();
   const push = usePushDevice();
+  const [installGuideOpen, setInstallGuideOpen] = useState(false);
   if (!state) return null;
   const granted = push.permission === "granted";
   const checking = push.permission === "loading" || push.status === "loading";
   const message =
     push.permission === "install"
-      ? "홈 화면에 추가한 합스당근 아이콘으로 열어 알림을 허용해 주세요. iOS·iPadOS 16.4 이상이 필요해요."
+      ? "iPhone·iPad에서 알림을 받으려면 앱을 먼저 설치해야 해요. 홈 화면에 추가한 합스당근 아이콘으로 다시 접속한 뒤 알림을 허용해 주세요. iOS·iPadOS 16.4 이상이 필요해요."
       : push.permission === "in-app"
         ? "인앱 브라우저에서는 알림을 설정하지 않아요. 외부 브라우저로 열어 주세요."
         : push.permission === "insecure"
@@ -53,6 +56,17 @@ export function PushSettings() {
             </div>
           </div>
           <p className={styles.hint}>{message}</p>
+          {push.permission === "install" && (
+            <div className={styles.actions}>
+              <button
+                type="button"
+                className="button primary"
+                onClick={() => setInstallGuideOpen(true)}
+              >
+                앱 설치 방법 보기
+              </button>
+            </div>
+          )}
           {push.error && (
             <div className={styles.feedback} role="alert">
               <p>{push.error}</p>
@@ -82,6 +96,9 @@ export function PushSettings() {
         <ChatNotificationSettings key={`chat-${state.viewer.id}`} />
         <PostNotificationSettings key={state.viewer.id} />
       </div>
+      {push.permission === "install" && installGuideOpen && (
+        <IosInstallDialog onClose={() => setInstallGuideOpen(false)} />
+      )}
     </section>
   );
 }

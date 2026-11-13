@@ -17,14 +17,16 @@ export function IosInstallDialog({ onClose }: { onClose: () => void }) {
       ref={ref}
       className={`push-permission-dialog ${styles.dialog}`}
       aria-labelledby="ios-install-title"
+      aria-describedby="ios-install-description"
       onCancel={(event) => {
         event.preventDefault();
         onClose();
       }}
     >
       <h2 id="ios-install-title">합스당근을 홈 화면에서 바로 열어보세요</h2>
-      <p>
-        앱으로 추가하면 홈 화면의 아이콘으로 합스당근에 바로 접속할 수 있어요.
+      <p id="ios-install-description">
+        iPhone·iPad에서는 합스당근을 홈 화면에 추가한 뒤, 설치한 앱으로 접속해야
+        알림을 허용할 수 있어요.
       </p>
       <InstallActions dialog onLater={onClose} />
     </dialog>
@@ -85,7 +87,6 @@ export function InstallActions({
             홈 화면의 <strong>합스당근 아이콘</strong>으로 다시 열어주세요.
           </li>
         </ol>
-        <p>홈 화면에서 실행하면 알림을 설정할 수 있어요.</p>
         {dialog && (
           <div className={styles.actions}>
             <button type="button" className="button primary" onClick={onLater}>

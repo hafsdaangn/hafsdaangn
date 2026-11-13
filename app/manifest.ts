@@ -1,11 +1,12 @@
 import type { MetadataRoute } from "next";
+import { siteDescription, siteTitle } from "@/lib/site-metadata";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "합스당근",
-    short_name: "합스당근",
-    description: "HAFS 학교 계정으로 만나는 무료나눔, 분실물 연결.",
+    name: siteTitle,
+    short_name: siteTitle,
+    description: siteDescription,
     start_url: "/app/chats",
     scope: "/",
     display: "standalone",

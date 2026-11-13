@@ -126,7 +126,9 @@ function PermissionPrompt({ userId }: { userId: string }) {
       </h2>
       <p id="push-permission-description">
         {adding
-          ? "앱으로 추가하면 홈 화면의 아이콘으로 합스당근에 바로 접속할 수 있어요."
+          ? install.ios
+            ? "iPhone·iPad에서는 합스당근을 홈 화면에 추가한 뒤, 설치한 앱으로 접속해야 알림을 허용할 수 있어요."
+            : "앱으로 추가하면 홈 화면의 아이콘으로 합스당근에 바로 접속할 수 있어요."
           : step === "success"
             ? "알림 설정에 따라 새 채팅과 새 글을 알려드려요."
             : "나눔·분실물의 새 글과 새 채팅 알림을 받기 위해 기기에서 알림을 허용해주세요. 설정은 나중에도 내 정보 → 알림 설정에서 변경할 수 있어요. "}

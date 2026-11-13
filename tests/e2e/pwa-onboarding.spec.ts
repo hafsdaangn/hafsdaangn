@@ -299,6 +299,7 @@ test("iOS login landing opens instructions only when installation is clicked", a
   await page.getByRole("button", { name: "앱 설치", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText("설치한 앱으로 접속해야 알림을 허용");
   await expect(dialog).toContainText("공유");
   await expect(dialog).toContainText("홈 화면에 추가");
   expect(await dialog.getByRole("listitem").count()).toBeGreaterThanOrEqual(3);
@@ -339,6 +340,7 @@ test("iOS shows manual home screen instructions after login without invoking ins
   await expect(dialog).toContainText("공유");
   await expect(dialog).toContainText("홈 화면에 추가");
   await expect(dialog).toContainText("합스당근 아이콘");
+  await expect(dialog).toContainText("설치한 앱으로 접속해야 알림을 허용");
   await expect(
     dialog.getByRole("button", { name: "앱 설치", exact: true }),
   ).toHaveCount(0);
@@ -356,6 +358,40 @@ test("iOS shows manual home screen instructions after login without invoking ins
   await expect(
     page.getByRole("button", { name: "앱 설치", exact: true }),
   ).toHaveCount(0);
+  expect(
+    await page.evaluate(
+      () =>
+        (window as unknown as { pwaTest: { subscriptions: number } }).pwaTest
+          .subscriptions,
+    ),
+  ).toBe(0);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth > innerWidth,
+    ),
+  ).toBe(false);
+});
+
+test("iOS notification settings reopen installation help without requesting push in a browser tab", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  await openFixture(page, { ios: true }, true);
+  await expect(
+    page.getByText("앱을 먼저 설치해야 해요", { exact: false }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "알림 허용", exact: true }),
+  ).toHaveCount(0);
+  const install = page.getByRole("button", { name: "앱 설치 방법 보기" });
+  await install.click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("홈 화면에 추가");
+  await expect(dialog).toContainText("합스당근 아이콘");
+  await dialog.getByRole("button", { name: "확인" }).click();
+  await expect(dialog).toHaveCount(0);
+  await install.click();
+  await expect(dialog).toBeVisible();
   expect(
     await page.evaluate(
       () =>
