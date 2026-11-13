@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useSyncExternalStore } from "react";
+import { type ReactNode, useEffect, useRef, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import { kakaoExternalBrowserUrl } from "@/lib/external-browser";
 import { Brand } from "./brand";
@@ -27,6 +27,18 @@ export function ExternalBrowser({ children }: { children: ReactNode }) {
   // Recheck the current address after client-side route changes as well.
   usePathname();
   const href = useSyncExternalStore(subscribe, browserSnapshot, serverSnapshot);
+  const attemptedHref = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!href || attemptedHref.current === href) return;
+    attemptedHref.current = href;
+    try {
+      window.location.assign(href);
+    } catch {
+      // Some Kakao versions require a user gesture. Keep the direct link below.
+    }
+  }, [href]);
+
   if (!href) return children;
 
   return (
@@ -38,12 +50,15 @@ export function ExternalBrowser({ children }: { children: ReactNode }) {
           </h1>
           <aside className={styles.notice} aria-label="외부 브라우저 안내">
             <p>
-              카카오톡 내부 브라우저에서는 기능이 제한돼요. 외부 브라우저에서
-              이용해 주세요.
+              카카오톡 내부 브라우저에서는 기능이 제한돼요.
+              외부 브라우저에서 이용해 주세요.
             </p>
             <a className="button primary" href={href}>
               외부 브라우저로 열기
             </a>
+            <p className={styles.help}>
+              자동으로 이동하지 않으면 위 버튼을 누르거나 카카오톡 메뉴에서 다른 브라우저로 열기를 선택해 주세요.
+            </p>
           </aside>
         </div>
       </main>

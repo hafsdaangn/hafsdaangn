@@ -91,7 +91,10 @@ test("initial data scopes names to inbox participants and avoids global message 
           return Promise.resolve({
             data:
               table === "profiles"
-                ? [{ id: "me", display_name: "Tester" }]
+                ? [
+                    { id: "me", display_name: "Tester" },
+                    { id: "other", display_name: "Other" },
+                  ]
                 : [],
             error: null,
           });
@@ -110,10 +113,17 @@ test("initial data scopes names to inbox participants and avoids global message 
     },
   };
   const { GET } = await load("app/api/data/route.ts", {
-    authenticate: async () => ({ client, user: { id: "me" } }),
+    authenticate: async () => ({
+      client,
+      user: { id: "me", email: "tester@hafs.hs.kr" },
+    }),
   });
   const initial = await GET(new Request("http://app.test/api/data"));
   assert.equal(initial.status, 200);
+  const data = await initial.json();
+  assert.equal(data.viewer.email, "tester@hafs.hs.kr");
+  assert.equal(data.viewer.display_name, "Tester");
+  assert.ok(data.profiles.every((profile: object) => !("email" in profile)));
   assert.deepEqual(
     [...(calls.find((call) => call.table === "profiles")?.ids ?? [])],
     ["me", "other"],

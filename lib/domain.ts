@@ -62,7 +62,7 @@ export type Message = {
   created_at: string;
 };
 export type Snapshot = {
-  viewer: Profile;
+  viewer: Profile & { email?: string };
   profiles: Profile[];
   posts: Post[];
   conversations: Conversation[];

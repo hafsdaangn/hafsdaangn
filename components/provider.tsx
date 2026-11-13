@@ -64,7 +64,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<Snapshot | null>(null),
     [error, setError] = useState("");
   const current = useRef<Snapshot | null>(null);
-  const identifiedUserId = useRef<string | null>(null);
+  const identifiedUser = useRef<string | null>(null);
   const refreshing = useRef<Promise<void> | null>(null);
   // Memory belongs to this mounted, authenticated provider, never another user.
   const feeds = useRef(new Map<string, FeedPage>());
@@ -196,15 +196,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
   const viewerId = state?.viewer.id;
   const viewerDisplayName = state?.viewer.display_name;
+  const viewerEmail = state?.viewer.email;
   useEffect(() => {
-    if (!viewerId || identifiedUserId.current === viewerId) return;
+    if (!viewerId) return;
+    const identity = JSON.stringify([viewerId, viewerDisplayName, viewerEmail]);
+    if (identifiedUser.current === identity) return;
 
     const previousUserId = posthog.get_property("$user_id");
     if (previousUserId && previousUserId !== viewerId) posthog.reset();
 
-    posthog.identify(viewerId, { display_name: viewerDisplayName });
-    identifiedUserId.current = viewerId;
-  }, [viewerId, viewerDisplayName]);
+    posthog.identify(viewerId, {
+      name: viewerDisplayName,
+      display_name: viewerDisplayName,
+      ...(viewerEmail ? { email: viewerEmail } : {}),
+    });
+    identifiedUser.current = identity;
+  }, [viewerId, viewerDisplayName, viewerEmail]);
   useEffect(() => {
     const client = browserClient();
     if (!client) return;

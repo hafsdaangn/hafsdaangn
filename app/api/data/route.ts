@@ -55,9 +55,12 @@ export async function GET(request: Request) {
         "데이터를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.",
       );
     const response = json({
-      viewer: profiles.data?.find((p) => p.id === user.id) ?? {
-        id: user.id,
-        display_name: "",
+      viewer: {
+        ...(profiles.data?.find((p) => p.id === user.id) ?? {
+          id: user.id,
+          display_name: "",
+        }),
+        email: user.email,
       },
       profiles: profiles.data ?? [],
       posts: posts.data ?? [],

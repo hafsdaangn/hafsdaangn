@@ -13,3 +13,10 @@
 .notice a {
   width: 100%;
 }
+
+.notice .help {
+  margin: 16px 0 0;
+  color: var(--color-muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
