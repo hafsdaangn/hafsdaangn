@@ -57,7 +57,8 @@ export function InstallActions({
           ? "설치를 수락했어요."
           : "설치하지 않아도 계속 이용할 수 있어요.",
       );
-      onInstalled?.();
+      if (outcome === "accepted") onInstalled?.();
+      else onLater?.();
     } catch {
       setError("설치를 시작하지 못했어요. 잠시 후 다시 시도해 주세요.");
     } finally {

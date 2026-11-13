@@ -1,7 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import posthog from "posthog-js";
-import { captureDeviceEventOnce } from "../lib/device-analytics";
+import {
+  captureDeviceEventOnce,
+  captureUserEventOnce,
+} from "../lib/device-analytics";
+import {
+  captureOnboardingProgress,
+  type OnboardingProgress,
+} from "../lib/onboarding-analytics";
 import {
   connectPush,
   snooze,
@@ -32,6 +39,145 @@ function replace(name: string, value: unknown) {
     else Reflect.deleteProperty(globalThis, name);
   };
 }
+
+test("user completion waits for identify and distinguishes permission from server readiness", async (t) => {
+  const events: {
+    event: string;
+    user: string;
+    properties: Record<string, unknown>;
+  }[] = [];
+  let user = "anonymous";
+  t.mock.method(posthog, "get_distinct_id", () => user);
+  t.mock.method(
+    posthog,
+    "capture",
+    (event: string, properties: Record<string, unknown>) => {
+      events.push({ event, user, properties });
+      return {};
+    },
+  );
+  const values = new Map<string, string>();
+  const restore = replace("localStorage", {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => values.set(key, value),
+  });
+  const progress: OnboardingProgress = {
+    platform: "ios",
+    standalone: true,
+    installed: false,
+    permission: "default",
+    connected: false,
+    inApp: false,
+    secure: true,
+  };
+  try {
+    await captureOnboardingProgress("funnel-a", progress);
+    assert.equal(events.length, 0);
+    assert.equal(values.size, 0);
+    user = "funnel-a";
+    await captureOnboardingProgress(user, progress);
+    await captureOnboardingProgress(user, {
+      ...progress,
+      permission: "granted",
+    });
+    assert.deepEqual(
+      events.map(({ event }) => event),
+      [
+        "onboarding_started",
+        "pwa_install_completed",
+        "push_permission_granted",
+      ],
+    );
+    assert.equal(events[1].properties.detection_method, "standalone_launch");
+    await Promise.all([
+      captureOnboardingProgress(user, {
+        ...progress,
+        permission: "granted",
+        connected: true,
+      }),
+      captureOnboardingProgress(user, {
+        ...progress,
+        permission: "granted",
+        connected: true,
+      }),
+    ]);
+    assert.equal(
+      events.filter(({ event }) => event === "push_setup_completed").length,
+      1,
+    );
+    assert.ok(events.every(({ user }) => user === "funnel-a"));
+    user = "funnel-b";
+    await captureOnboardingProgress(user, progress);
+    assert.deepEqual(
+      events.slice(-2).map(({ event, user }) => [event, user]),
+      [
+        ["onboarding_started", "funnel-b"],
+        ["pwa_install_completed", "funnel-b"],
+      ],
+    );
+  } finally {
+    restore();
+  }
+});
+
+test("browser visits and denied permission do not claim completed installation or push setup", async (t) => {
+  const events: string[] = [];
+  t.mock.method(posthog, "get_distinct_id", () => "funnel-denied");
+  t.mock.method(posthog, "capture", (event: string) => {
+    events.push(event);
+    return {};
+  });
+  const restore = replace("localStorage", {
+    getItem: () => null,
+    setItem: () => {},
+  });
+  try {
+    await captureOnboardingProgress("funnel-denied", {
+      platform: "android",
+      standalone: false,
+      installed: false,
+      permission: "denied",
+      connected: true,
+      inApp: false,
+      secure: true,
+    });
+    assert.deepEqual(events, ["onboarding_started"]);
+  } finally {
+    restore();
+  }
+});
+
+test("account changes during a cross-tab lock cannot misattribute a completion", async (t) => {
+  let user = "lock-a";
+  let release: (() => boolean) | undefined;
+  const events: string[] = [];
+  t.mock.method(posthog, "get_distinct_id", () => user);
+  t.mock.method(posthog, "capture", (event: string) => {
+    events.push(event);
+    return {};
+  });
+  const restore = replace("navigator", {
+    locks: {
+      request: (_key: string, capture: () => boolean) =>
+        new Promise<boolean>((resolve) => {
+          release = () => {
+            const result = capture();
+            resolve(result);
+            return result;
+          };
+        }),
+    },
+  });
+  try {
+    const pending = captureUserEventOnce(user, "locked-completion");
+    user = "lock-b";
+    release!();
+    assert.equal(await pending, false);
+    assert.deepEqual(events, []);
+  } finally {
+    restore();
+  }
+});
 
 test("reading a chat closes only its read notifications, including legacy URL-only notifications", async () => {
   const closed: string[] = [];

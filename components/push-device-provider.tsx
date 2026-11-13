@@ -21,6 +21,9 @@ import {
   PushSetupError,
   type PreparedPush,
 } from "@/lib/push-client";
+import { analyticsIdentityChanged } from "@/lib/device-analytics";
+import { captureOnboardingProgress } from "@/lib/onboarding-analytics";
+import { useInstall } from "./pwa-provider";
 
 type Status = "loading" | "ready" | "connected" | "unconfigured" | "error";
 type Model = {
@@ -45,6 +48,7 @@ export function PushDeviceProvider({
   userId?: string;
   children: ReactNode;
 }) {
+  const install = useInstall();
   const permission = useSyncExternalStore(
     subscribePermission,
     devicePermission,
@@ -59,6 +63,28 @@ export function PushDeviceProvider({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
+
+  useEffect(() => {
+    if (!userId || !install.ready || permission === "loading") return;
+    const track = () => {
+      void captureOnboardingProgress(userId, {
+        platform: install.ios ? "ios" : install.mobile ? "android" : "other",
+        standalone: install.standalone,
+        installed: install.installed,
+        inApp: install.inApp,
+        secure: install.secure,
+        permission,
+        connected: status === "connected",
+      });
+    };
+    track();
+    window.addEventListener(analyticsIdentityChanged, track);
+    window.addEventListener("focus", track);
+    return () => {
+      window.removeEventListener(analyticsIdentityChanged, track);
+      window.removeEventListener("focus", track);
+    };
+  }, [userId, install, permission, status]);
 
   useEffect(() => {
     if (permission !== "granted") lastSync.current = -1;

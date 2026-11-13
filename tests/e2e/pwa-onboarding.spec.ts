@@ -18,6 +18,22 @@ test.beforeAll(async () => {
       {
         name: "fixture-context",
         setup(builder) {
+          builder.onResolve({ filter: /^posthog-js$/ }, () => ({
+            path: "analytics",
+            namespace: "fixture-analytics",
+          }));
+          builder.onLoad(
+            { filter: /.*/, namespace: "fixture-analytics" },
+            () => ({
+              contents: `export default {
+              get_distinct_id: () => window.pwaTest.distinctId,
+              capture(event, properties) {
+                window.pwaTest.analytics.push({ event, properties, distinctId: window.pwaTest.distinctId });
+                return {};
+              }
+            };`,
+            }),
+          );
           builder.onResolve({ filter: /^next\/navigation$/ }, () => ({
             path: "navigation",
             namespace: "fixture-navigation",
@@ -75,6 +91,8 @@ type Options = {
   holdSubscribe?: boolean;
   holdSave?: boolean;
   preferencesFail?: boolean;
+  dismissInstall?: boolean;
+  holdIdentify?: boolean;
 };
 async function openFixture(
   page: Page,
@@ -96,6 +114,12 @@ async function openFixture(
       failSave: false,
       saved: Boolean(options.connected),
       preferencesFail: Boolean(options.preferencesFail),
+      distinctId: options.holdIdentify ? "anonymous" : "test-user",
+      analytics: [] as {
+        event: string;
+        properties: Record<string, unknown>;
+        distinctId: string;
+      }[],
     };
     Object.assign(window, { pwaTest: state });
     if (options.off) localStorage.setItem("push-off:v2:test-user", "true");
@@ -229,7 +253,9 @@ async function openFixture(
             prompt: async () => {
               state.prompts++;
             },
-            userChoice: Promise.resolve({ outcome: "accepted" }),
+            userChoice: Promise.resolve({
+              outcome: options.dismissInstall ? "dismissed" : "accepted",
+            }),
           },
         );
         window.dispatchEvent(event);
@@ -405,7 +431,7 @@ test("iOS notification settings reopen installation help without requesting push
     ),
   ).toBe(false);
 });
-test("Android install dialog only offers installation and closes without requesting notifications", async ({
+test("Android installation immediately advances to push while preparation is pending", async ({
   page,
 }) => {
   await openFixture(page, { holdPrepare: true });
@@ -420,7 +446,9 @@ test("Android install dialog only offers installation and closes without request
     (window as unknown as { sendInstallEvent: () => void }).sendInstallEvent(),
   );
   await dialog.getByRole("button", { name: "앱 설치", exact: true }).click();
-  await expect(dialog).toHaveCount(0);
+  await expect(dialog).toContainText("알림을 설정할까요?");
+  const allow = dialog.getByRole("button", { name: "알림 허용", exact: true });
+  await expect(allow).toBeDisabled();
   expect(
     await page.evaluate(
       () =>
@@ -431,6 +459,162 @@ test("Android install dialog only offers installation and closes without request
         ).pwaTest,
     ),
   ).toMatchObject({ subscriptions: 0, posts: 0, prompts: 1 });
+  await page.evaluate(() =>
+    (
+      window as unknown as { releasePushPreparation: () => void }
+    ).releasePushPreparation(),
+  );
+  await expect(allow).toBeEnabled();
+  await allow.click();
+  await expect(dialog).toContainText("알림을 설정했어요");
+});
+
+test("dismissing native Android installation does not advance to push", async ({
+  page,
+}) => {
+  await openFixture(page, { holdPrepare: true, dismissInstall: true });
+  await page.evaluate(() =>
+    (window as unknown as { sendInstallEvent: () => void }).sendInstallEvent(),
+  );
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "앱 설치", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await page.evaluate(() =>
+    (
+      window as unknown as { releasePushPreparation: () => void }
+    ).releasePushPreparation(),
+  );
+  await expect(page.getByRole("button", { name: "설정 열기" })).toBeVisible();
+  await expect(dialog).toHaveCount(0);
+});
+
+test("installed iOS shows push guidance before preparation finishes", async ({
+  page,
+}) => {
+  await openFixture(page, { ios: true, standalone: true, holdPrepare: true });
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("알림을 설정할까요?");
+  const allow = dialog.getByRole("button", { name: "알림 허용", exact: true });
+  await expect(allow).toBeDisabled();
+  await page.evaluate(() =>
+    (
+      window as unknown as { releasePushPreparation: () => void }
+    ).releasePushPreparation(),
+  );
+  await expect(allow).toBeEnabled();
+});
+
+async function analyticsEvents(page: Page) {
+  return page.evaluate(
+    () =>
+      (
+        window as unknown as {
+          pwaTest: {
+            analytics: {
+              event: string;
+              properties: Record<string, unknown>;
+              distinctId: string;
+            }[];
+          };
+        }
+      ).pwaTest.analytics,
+  );
+}
+
+test("Android acceptance is not installation completion until appinstalled fires", async ({
+  page,
+}) => {
+  await openFixture(page, { holdPrepare: true });
+  await page.evaluate(() =>
+    (window as unknown as { sendInstallEvent: () => void }).sendInstallEvent(),
+  );
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "앱 설치", exact: true })
+    .click();
+  await expect
+    .poll(async () => (await analyticsEvents(page)).map(({ event }) => event))
+    .toContain("pwa_install_accepted");
+  expect((await analyticsEvents(page)).map(({ event }) => event)).not.toContain(
+    "pwa_install_completed",
+  );
+  await page.evaluate(() => window.dispatchEvent(new Event("appinstalled")));
+  await expect
+    .poll(
+      async () =>
+        (await analyticsEvents(page)).filter(
+          ({ event }) => event === "pwa_install_completed",
+        ).length,
+    )
+    .toBe(1);
+  await page.evaluate(() => window.dispatchEvent(new Event("appinstalled")));
+  const installed = (await analyticsEvents(page)).find(
+    ({ event }) => event === "pwa_install_completed",
+  )!;
+  expect(installed.distinctId).toBe("test-user");
+  expect(installed.properties.detection_method).toBe("appinstalled");
+});
+
+test("iOS analytics wait for identify and separate granted permission from a failed server save", async ({
+  page,
+}) => {
+  await openFixture(page, { ios: true, standalone: true, holdIdentify: true });
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("button", { name: "알림 허용" })).toBeEnabled();
+  expect((await analyticsEvents(page)).map(({ event }) => event)).not.toContain(
+    "onboarding_started",
+  );
+  await page.evaluate(() => {
+    const state = (
+      window as unknown as {
+        pwaTest: { distinctId: string; failSave: boolean };
+      }
+    ).pwaTest;
+    state.distinctId = "test-user";
+    state.failSave = true;
+    window.dispatchEvent(new Event("analytics-identity-changed"));
+  });
+  await expect
+    .poll(async () => (await analyticsEvents(page)).map(({ event }) => event))
+    .toContain("pwa_install_completed");
+  await dialog.getByRole("button", { name: "알림 허용" }).click();
+  await expect(dialog.getByRole("alert")).toBeVisible();
+  await expect
+    .poll(async () => (await analyticsEvents(page)).map(({ event }) => event))
+    .toContain("push_permission_granted");
+  expect((await analyticsEvents(page)).map(({ event }) => event)).not.toContain(
+    "push_setup_completed",
+  );
+  await page.evaluate(() => {
+    (window as unknown as { pwaTest: { failSave: boolean } }).pwaTest.failSave =
+      false;
+  });
+  await dialog.getByRole("button", { name: "다시 시도" }).click();
+  await expect
+    .poll(
+      async () =>
+        (await analyticsEvents(page)).filter(
+          ({ event }) => event === "push_setup_completed",
+        ).length,
+    )
+    .toBe(1);
+  const milestones = (await analyticsEvents(page)).filter(({ event }) =>
+    [
+      "onboarding_started",
+      "pwa_install_completed",
+      "push_permission_granted",
+      "push_setup_completed",
+    ].includes(event),
+  );
+  expect(milestones.map(({ event }) => event)).toEqual([
+    "onboarding_started",
+    "pwa_install_completed",
+    "push_permission_granted",
+    "push_setup_completed",
+  ]);
+  expect(milestones.every(({ distinctId }) => distinctId === "test-user")).toBe(
+    true,
+  );
 });
 
 test("installed iOS retries a failed server save without creating a second subscription", async ({

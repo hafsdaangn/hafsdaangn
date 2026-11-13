@@ -10,6 +10,7 @@ import {
 } from "react";
 import { browserClient } from "@/lib/supabase/browser";
 import posthog from "posthog-js";
+import { analyticsIdentityChanged } from "@/lib/device-analytics";
 import type { RealtimePostgresInsertPayload } from "@supabase/supabase-js";
 import {
   unreadCount,
@@ -211,6 +212,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ...(viewerEmail ? { email: viewerEmail } : {}),
     });
     identifiedUser.current = identity;
+    window.dispatchEvent(new Event(analyticsIdentityChanged));
   }, [viewerId, viewerDisplayName, viewerEmail]);
   useEffect(() => {
     const client = browserClient();

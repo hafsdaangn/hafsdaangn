@@ -74,11 +74,20 @@ export function observeInstall() {
   const refresh = () => {
     const environment = deviceEnvironment();
     update({ ...environment, ready: true });
-    if (environment.standalone)
+    if (environment.standalone) {
+      void captureDeviceEventOnce("pwa_installed", {
+        detection_method: "standalone_launch",
+        platform: environment.ios
+          ? "ios"
+          : environment.mobile
+            ? "android"
+            : "other",
+      });
       void captureDeviceEventOnce("pwa_first_open", {
         detection_method: "standalone_launch",
         platform: environment.ios ? "ios" : "other",
       });
+    }
   };
   const beforeInstall = (event: Event) => {
     event.preventDefault();
@@ -119,5 +128,9 @@ export async function promptInstall() {
   update({ prompt: null });
   await event.prompt();
   const { outcome } = await event.userChoice;
+  if (outcome === "accepted")
+    void captureDeviceEventOnce("pwa_install_accepted", {
+      platform: snapshot.ios ? "ios" : snapshot.mobile ? "android" : "other",
+    });
   return outcome;
 }

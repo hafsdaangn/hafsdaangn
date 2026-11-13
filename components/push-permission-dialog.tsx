@@ -34,6 +34,11 @@ function PermissionPrompt({ userId }: { userId: string }) {
   const ended = useRef(false);
   const [step, setStep] = useState<Step>(null);
   const canPush = push.permission === "default" && push.status === "ready";
+  const showPush =
+    canPush ||
+    (install.standalone &&
+      push.permission === "default" &&
+      push.status === "loading");
 
   useEffect(() => {
     if (
@@ -54,7 +59,7 @@ function PermissionPrompt({ userId }: { userId: string }) {
         : !snoozed(userId, "install"));
     const next = addApp
       ? "install"
-      : canPush && !snoozed(userId, "push")
+      : showPush && !snoozed(userId, "push")
         ? "push"
         : null;
     if (!next) return;
@@ -71,7 +76,7 @@ function PermissionPrompt({ userId }: { userId: string }) {
     return () => {
       active = false;
     };
-  }, [step, userId, install, canPush]);
+  }, [step, userId, install, showPush]);
 
   useEffect(() => {
     if (!step) return;
@@ -93,6 +98,11 @@ function PermissionPrompt({ userId }: { userId: string }) {
 
   async function connect() {
     if (await push.allow()) setStep("success");
+  }
+
+  function installed() {
+    if (push.permission === "default") setStep("push");
+    else close();
   }
 
   if (!step) return null;
@@ -133,7 +143,9 @@ function PermissionPrompt({ userId }: { userId: string }) {
             ? "알림 설정에 따라 새 채팅과 새 글을 알려드려요."
             : "나눔·분실물의 새 글과 새 채팅 알림을 받기 위해 기기에서 알림을 허용해주세요. 설정은 나중에도 내 정보 → 알림 설정에서 변경할 수 있어요. "}
       </p>
-      {adding && <InstallActions dialog onLater={close} onInstalled={close} />}
+      {adding && (
+        <InstallActions dialog onLater={close} onInstalled={installed} />
+      )}
       {!adding && step !== "success" && (
         <>
           {push.permission === "denied" && (
