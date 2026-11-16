@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "./app-link";
-import { Bell, LogOut, ChevronRight } from "lucide-react";
+import { Bell, LogOut, ChevronRight, MessageSquare } from "lucide-react";
 import type { Post } from "@/lib/domain";
 import { useApp } from "./provider";
 import posthog from "posthog-js";
@@ -147,6 +147,11 @@ export function ProfilePage() {
           알림 설정
           <ChevronRight size={17} />
         </Link>
+        <button id="send-feedback">
+          <MessageSquare size={18} />
+          의견 보내기
+          <ChevronRight size={17} />
+        </button>
         <button disabled={busy} onClick={() => void logout()}>
           <LogOut size={18} />
           로그아웃
