@@ -42,8 +42,6 @@ export function Chats({ id }: { id?: string }) {
     lastRead = useRef(0),
     confirmedRead = useRef(0),
     pinnedToBottom = useRef(true),
-    touchSend = useRef<number | null>(null),
-    suppressSendClick = useRef(false),
     scroller = useRef<HTMLDivElement>(null);
   const room = state?.conversations.find((c) => c.id === id),
     messages = state?.messages.filter((m) => m.conversation_id === id) ?? [],
@@ -481,42 +479,15 @@ export function Chats({ id }: { id?: string }) {
                 type="submit"
                 className="send-button"
                 aria-label="메시지 전송"
-                onPointerDown={(event) => {
-                  suppressSendClick.current = false;
-                  // Keep an open keyboard from closing when the send button
-                  // would otherwise take focus from the message input.
+                onMouseDown={(event) => {
+                  // iOS WebKit can blur the input even when pointerdown is
+                  // canceled. Cancel mousedown, including the one from a tap.
                   if (
                     event.button === 0 &&
                     document.activeElement === messageInput.current
                   ) {
                     event.preventDefault();
-                    if (event.pointerType !== "mouse")
-                      touchSend.current = event.pointerId;
                   }
-                }}
-                onPointerUp={(event) => {
-                  if (touchSend.current !== event.pointerId) return;
-                  touchSend.current = null;
-                  event.preventDefault();
-                  suppressSendClick.current = true;
-                  const bounds = event.currentTarget.getBoundingClientRect();
-                  // WebKit can suppress click after cancelling pointerdown.
-                  // Submit the touch explicitly, once, without blurring input.
-                  if (
-                    event.clientX >= bounds.left &&
-                    event.clientX <= bounds.right &&
-                    event.clientY >= bounds.top &&
-                    event.clientY <= bounds.bottom
-                  )
-                    event.currentTarget.form?.requestSubmit();
-                }}
-                onPointerCancel={() => {
-                  touchSend.current = null;
-                }}
-                onClick={(event) => {
-                  if (suppressSendClick.current && event.detail > 0)
-                    event.preventDefault();
-                  suppressSendClick.current = false;
                 }}
                 disabled={busy || (!text.trim() && !attachment)}
               >
