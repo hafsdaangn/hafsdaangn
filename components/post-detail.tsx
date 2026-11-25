@@ -1,6 +1,6 @@
 "use client";
 import Link from "./app-link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { navigateApp } from "./app-link";
 import {
   MapPin,
@@ -38,9 +38,10 @@ export function PostDetail({
     [index, setIndex] = useState(0),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
-    [confirm, setConfirm] = useState(false),
+    [deleteError, setDeleteError] = useState(""),
     [loaded, setLoaded] = useState(false),
     [missing, setMissing] = useState(false);
+  const deleteDialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     let active = true;
     loadPosts(`id=${encodeURIComponent(id)}`)
@@ -82,6 +83,7 @@ export function PostDetail({
     );
   const author = state.profiles.find((p) => p.id === post.author_id),
     mine = post.author_id === state.viewer.id,
+    canDelete = mine || state.viewer.isPostAdmin,
     market = isMarket(post.kind);
   if (edit)
     return mine ? (
@@ -103,6 +105,20 @@ export function PostDetail({
   async function contact() {
     const c = await action("conversation.create", { post_id: id });
     if (c) navigateApp(`${base}/chats/${c.id}`);
+  }
+  async function removePost() {
+    if (busy) return;
+    setBusy(true);
+    setDeleteError("");
+    try {
+      await mutate("post.delete", { id });
+      deleteDialog.current?.close();
+      navigateApp(market ? base : `${base}/lost`);
+    } catch (e) {
+      setDeleteError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
   }
   const existing = state.conversations.find(
     (c) =>
@@ -183,87 +199,108 @@ export function PostDetail({
             )}
           </div>
           <ErrorNotice message={error} />
-          {mine ? (
+          {canDelete && (
             <div className="owner-actions">
-              <div className="owner-status">
-                <span id="post-status-label">진행 상태</span>
-                <div
-                  className="owner-status-options"
-                  role="radiogroup"
-                  aria-labelledby="post-status-label"
-                  aria-busy={busy}
-                >
-                  {[
-                    { value: "active", label: market ? "나눔 중" : "찾는 중" },
-                    ...(market
-                      ? [{ value: "reserved", label: "예약 중" }]
-                      : []),
-                    {
-                      value: "completed",
-                      label: market ? "나눔 완료" : "해결 완료",
-                    },
-                  ].map((option) => (
-                    <label key={option.value}>
-                      <input
-                        type="radio"
-                        name="post-status"
-                        value={option.value}
-                        checked={post.status === option.value}
-                        disabled={busy}
-                        onChange={() => {
-                          void action("post.status", {
-                            id,
-                            status: option.value,
-                            updated_at: post.updated_at,
-                          });
-                        }}
-                      />
-                      <span>{option.label}</span>
-                    </label>
-                  ))}
+              {mine && (
+                <div className="owner-status">
+                  <span id="post-status-label">진행 상태</span>
+                  <div
+                    className="owner-status-options"
+                    role="radiogroup"
+                    aria-labelledby="post-status-label"
+                    aria-busy={busy}
+                  >
+                    {[
+                      {
+                        value: "active",
+                        label: market ? "나눔 중" : "찾는 중",
+                      },
+                      ...(market
+                        ? [{ value: "reserved", label: "예약 중" }]
+                        : []),
+                      {
+                        value: "completed",
+                        label: market ? "나눔 완료" : "해결 완료",
+                      },
+                    ].map((option) => (
+                      <label key={option.value}>
+                        <input
+                          type="radio"
+                          name="post-status"
+                          value={option.value}
+                          checked={post.status === option.value}
+                          disabled={busy}
+                          onChange={() => {
+                            void action("post.status", {
+                              id,
+                              status: option.value,
+                              updated_at: post.updated_at,
+                            });
+                          }}
+                        />
+                        <span>{option.label}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
               <div className="owner-buttons">
-                <Link
-                  className="button ghost"
-                  href={`${base}/posts/${id}/edit`}
-                >
-                  <Pencil size={15} />
-                  수정
-                </Link>
+                {mine && (
+                  <Link
+                    className="button ghost"
+                    href={`${base}/posts/${id}/edit`}
+                  >
+                    <Pencil size={15} />
+                    수정
+                  </Link>
+                )}
                 <button
+                  type="button"
                   className="button ghost danger"
-                  onClick={() => setConfirm(true)}
+                  disabled={busy}
+                  onClick={() => {
+                    setDeleteError("");
+                    deleteDialog.current?.showModal();
+                  }}
                 >
                   <Trash2 size={15} />
                   삭제
                 </button>
               </div>
-              {confirm && (
-                <div className="confirm-panel" role="alert">
-                  <p>게시글을 삭제할까요? 기존 채팅은 유지돼요.</p>
-                  <div>
-                    <button
-                      className="button secondary"
-                      onClick={() => setConfirm(false)}
-                    >
-                      취소
-                    </button>
-                    <button
-                      className="button danger-solid"
-                      disabled={busy}
-                      onClick={async () => {
-                        const result = await action("post.delete", { id });
-                        if (result) navigateApp(market ? base : `${base}/lost`);
-                      }}
-                    >
-                      삭제하기
-                    </button>
-                  </div>
+              <dialog
+                ref={deleteDialog}
+                className="post-delete-dialog"
+                aria-labelledby="post-delete-title"
+                aria-describedby="post-delete-description"
+                onCancel={(event) => {
+                  if (busy) event.preventDefault();
+                }}
+              >
+                <h2 id="post-delete-title">게시글을 삭제할까요?</h2>
+                <p id="post-delete-description">기존 채팅은 유지돼요.</p>
+                <ErrorNotice message={deleteError} />
+                <div className="post-delete-actions">
+                  <button
+                    type="button"
+                    className="button secondary"
+                    disabled={busy}
+                    onClick={() => deleteDialog.current?.close()}
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="button"
+                    className="button danger-solid"
+                    disabled={busy}
+                    onClick={removePost}
+                  >
+                    삭제하기
+                  </button>
                 </div>
-              )}
+              </dialog>
             </div>
-          ) : (
+          )}
+          {!mine && (
             <div className="detail-action">
               {market && post.kind !== "giveaway" && (
                 <div>

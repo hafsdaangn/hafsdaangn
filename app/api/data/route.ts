@@ -1,6 +1,7 @@
 import { member } from "@/lib/auth";
 import { failure, json } from "@/lib/http";
 import type { Conversation } from "@/lib/domain";
+import { isPostAdmin } from "@/lib/post-admin";
 import { z } from "zod";
 export async function GET(request: Request) {
   try {
@@ -61,6 +62,7 @@ export async function GET(request: Request) {
           display_name: "",
         }),
         email: user.email,
+        isPostAdmin: isPostAdmin(user.email),
       },
       profiles: profiles.data ?? [],
       posts: posts.data ?? [],

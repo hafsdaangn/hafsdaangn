@@ -1,7 +1,8 @@
 @import "tailwindcss";
 @import "../tokens.css";
 
-.push-permission-dialog {
+.push-permission-dialog,
+.post-delete-dialog {
   width: min(420px, calc(100% - 32px));
   max-height: calc(100dvh - 48px);
   margin: auto;
@@ -12,27 +13,32 @@
   color: var(--color-ink);
   box-shadow: 0 20px 60px var(--color-shadow);
 }
-.push-permission-dialog::backdrop {
+.push-permission-dialog::backdrop,
+.post-delete-dialog::backdrop {
   background: rgb(0 0 0 / 40%);
 }
 .push-permission-icon {
   color: var(--color-accent);
   margin-bottom: 16px;
 }
-.push-permission-dialog h2 {
+.push-permission-dialog h2,
+.post-delete-dialog h2 {
   font-size: 21px;
   margin-bottom: 12px;
 }
-.push-permission-dialog p {
+.push-permission-dialog p,
+#post-delete-description {
   color: var(--color-muted);
   font-size: 14px;
 }
-.push-permission-actions {
+.push-permission-actions,
+.post-delete-actions {
   display: flex;
   gap: 8px;
   margin-top: 24px;
 }
-.push-permission-actions .button {
+.push-permission-actions .button,
+.post-delete-actions .button {
   flex: 1;
 }
 .push-permission-dialog .push-permission-hint {
@@ -891,21 +897,6 @@ input[type="checkbox"] {
   display: flex;
   gap: 12px;
   margin-top: 16px;
-}
-.confirm-panel {
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-md);
-  background: var(--color-subtle);
-  padding: 20px;
-  margin-top: 16px;
-}
-.confirm-panel p {
-  font-size: 14px;
-  margin-bottom: 14px;
-}
-.confirm-panel > div {
-  display: flex;
-  gap: 8px;
 }
 .form-page {
   max-width: 680px;

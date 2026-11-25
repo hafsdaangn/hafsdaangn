@@ -71,13 +71,112 @@ async function load(
     ...globals,
   });
   return compiledModule.exports as typeof import("../lib/google-oauth") &
-    typeof import("../lib/database-token") & {
+    typeof import("../lib/database-token") &
+    typeof import("../app/api/mutate/route") & {
       default: (props: {
         children?: string;
         searchParams?: Promise<{ error?: string }>;
       }) => Promise<unknown>;
     };
 }
+
+test("only a listed session email can use the privileged post deletion path", async () => {
+  const id = "00000000-0000-4000-8000-000000000001";
+  let email: string | null = "admin@hafs.hs.kr";
+  let updated = false;
+  const normalOps: string[] = [];
+  const { POST } = await load(
+    "app/api/mutate/route.ts",
+    {
+      env: { ADMIN_EMAILS: "other@hafs.hs.kr, ADMIN@hafs.hs.kr " },
+      authenticate: async () => {
+        if (!email) throw new Error("Session required");
+        return {
+          user: { id: "member", email },
+          client: {
+            rpc: async (name: string, { op }: { op: string }) => {
+              assert.equal(name, "mutate");
+              normalOps.push(op);
+              return { error: { code: "P0001", message: "Author required" } };
+            },
+          },
+        };
+      },
+      adminClient: () => {
+        const query = {
+          from(table: string) {
+            assert.equal(table, "posts");
+            return query;
+          },
+          update(values: { deleted_at: string; updated_at: string }) {
+            assert.ok(Number.isFinite(Date.parse(values.deleted_at)));
+            assert.equal(values.deleted_at, values.updated_at);
+            assert.deepEqual(Object.keys(values).sort(), [
+              "deleted_at",
+              "updated_at",
+            ]);
+            return query;
+          },
+          eq(column: string, value: string) {
+            assert.equal(column, "id");
+            assert.equal(value, id);
+            return query;
+          },
+          is(column: string, value: null) {
+            assert.equal(column, "deleted_at");
+            assert.equal(value, null);
+            return query;
+          },
+          select: () => query,
+          async maybeSingle() {
+            const data = updated ? null : { id };
+            updated = true;
+            return { data, error: null };
+          },
+        };
+        return query;
+      },
+    },
+    {
+      "@/lib/auth": "export const member=()=>globalThis.authenticate();",
+      "@/lib/supabase/server":
+        "export const storageAdmin=()=>globalThis.adminClient();",
+      "next/server": "export const after=()=>{};",
+      "@/lib/push": "export const notifyChat=()=>{}, notifyPost=()=>{};",
+      "@/lib/posthog-server": "export const captureServerEvent=async()=>{};",
+      "@/instrumentation":
+        "export const emitPostHogLog=()=>{}, flushPostHogLogs=()=>{};",
+    },
+  );
+  const mutate = (op: string, payload: object) =>
+    POST(
+      new Request("https://school.example/api/mutate", {
+        method: "POST",
+        headers: { origin: "https://school.example" },
+        body: JSON.stringify({ op, payload }),
+      }),
+    );
+  email = null;
+  assert.equal((await mutate("post.delete", { id })).status, 400);
+  email = "not-admin@hafs.hs.kr";
+  const denied = await mutate("post.delete", { id, email: "admin@hafs.hs.kr" });
+  assert.equal(denied.status, 400);
+  assert.deepEqual(await denied.json(), { error: "Author required" });
+  email = "admin@hafs.hs.kr";
+  assert.equal((await mutate("post.delete", { id: "invalid" })).status, 400);
+  assert.equal(updated, false);
+  const deleted = await mutate("post.delete", { id });
+  assert.equal(deleted.status, 200);
+  assert.deepEqual(await deleted.json(), { id });
+  assert.equal((await mutate("post.delete", { id })).status, 404);
+  const status = await mutate("post.status", {
+    id,
+    status: "completed",
+    updated_at: new Date().toISOString(),
+  });
+  assert.equal(status.status, 400);
+  assert.deepEqual(normalOps, ["post.delete", "post.status"]);
+});
 
 test("Google login uses our callback, S256 PKCE, state and nonce", async () => {
   const oauth = await load("lib/google-oauth.ts");

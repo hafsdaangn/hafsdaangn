@@ -46,6 +46,7 @@ async function load(entry: string, globals: Record<string, unknown> = {}) {
     URL,
     performance,
     console,
+    process: { env: {} },
     ...globals,
   });
   return compiledModule.exports as {
@@ -113,6 +114,7 @@ test("initial data scopes names to inbox participants and avoids global message 
     },
   };
   const { GET } = await load("app/api/data/route.ts", {
+    process: { env: { ADMIN_EMAILS: "tester@hafs.hs.kr, other@hafs.hs.kr" } },
     authenticate: async () => ({
       client,
       user: { id: "me", email: "tester@hafs.hs.kr" },
@@ -123,6 +125,7 @@ test("initial data scopes names to inbox participants and avoids global message 
   const data = await initial.json();
   assert.equal(data.viewer.email, "tester@hafs.hs.kr");
   assert.equal(data.viewer.display_name, "Tester");
+  assert.equal(data.viewer.isPostAdmin, true);
   assert.ok(data.profiles.every((profile: object) => !("email" in profile)));
   assert.deepEqual(
     [...(calls.find((call) => call.table === "profiles")?.ids ?? [])],

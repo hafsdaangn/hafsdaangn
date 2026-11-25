@@ -7,6 +7,8 @@ import { notifyChat, notifyPost } from "@/lib/push";
 import type { Message, Post } from "@/lib/domain";
 import { captureServerEvent } from "@/lib/posthog-server";
 import { emitPostHogLog, flushPostHogLogs } from "@/instrumentation";
+import { isPostAdmin } from "@/lib/post-admin";
+import { storageAdmin } from "@/lib/supabase/server";
 const schemas = {
   "post.save": postSchema,
   "post.status": z.object({
@@ -22,6 +24,17 @@ const schemas = {
     seq: z.number().int().nonnegative(),
   }),
 };
+
+function softDeletePost(id: string) {
+  const now = new Date().toISOString();
+  return storageAdmin()
+    .from("posts")
+    .update({ deleted_at: now, updated_at: now })
+    .eq("id", id)
+    .is("deleted_at", null)
+    .select("id")
+    .maybeSingle();
+}
 
 async function captureMutation(
   request: Request,
@@ -77,10 +90,13 @@ export async function POST(request: Request) {
       throw new Error("허용되지 않은 작업입니다.");
     const parsed = schemas[op as keyof typeof schemas].safeParse(payload);
     if (!parsed.success) throw new Error(parsed.error.issues[0].message);
-    const { data, error } = await client.rpc("mutate", {
-      op,
-      payload: parsed.data,
-    });
+    const adminDeleteId =
+      op === "post.delete" && "id" in parsed.data && isPostAdmin(user.email)
+        ? parsed.data.id
+        : undefined;
+    const { data, error } = adminDeleteId
+      ? await softDeletePost(adminDeleteId)
+      : await client.rpc("mutate", { op, payload: parsed.data });
     if (error) {
       console.error("Mutation failed", {
         op,
@@ -93,6 +109,8 @@ export async function POST(request: Request) {
           : "요청한 내용을 저장하지 못했어요. 입력을 확인하고 다시 시도해 주세요.",
       );
     }
+    if (adminDeleteId && !data)
+      return failure(new Error("게시글을 찾을 수 없어요."), 404);
     await captureMutation(
       request,
       user.id,
